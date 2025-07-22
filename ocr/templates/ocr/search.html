@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Search Files</title>
+</head>
+<body>
+  <h2>Search Processed Files</h2>
+  <form method="get">
+    <input type="text" name="q" value="{{ query }}" placeholder="Filename or account…">
+    <button type="submit">Search</button>
+  </form>
+
+  {% if results %}
+    <ul>
+    {% for f in results %}
+      <li>
+        {{ f.renamed_filename }} (original: {{ f.original_filename }})
+        – <a href="{{ f.uploaded_file.url }}">Download</a>
+      </li>
+    {% endfor %}
+    </ul>
+  {% elif query %}
+    <p>No results for “{{ query }}.”</p>
+  {% endif %}
+</body>
+</html>
+{% extends 'ocr/base.html' %}
+
+{% block title %}Search Files{% endblock %}
+
+{% block content %}
+  <h2>Search Processed Files</h2>
+  <form method="get" action="{% url 'search_files' %}">
+    <input type="text" name="q" value="{{ query }}" placeholder="Filename or account…">
+    <button type="submit">Search</button>
+  </form>
+
+  {% if results %}
+    <ul>
+      {% for f in results %}
+        <li>
+          <strong>{{ f.renamed_filename }}</strong>
+          (orig: {{ f.original_filename }}) —
+          <a href="{{ f.uploaded_file.url }}">Download</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% elif query %}
+    <p>No results for “{{ query }}.”</p>
+  {% endif %}
+{% endblock %}

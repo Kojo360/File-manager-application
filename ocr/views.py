@@ -1,8 +1,11 @@
-import os
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .forms import FileUploadForm
 from django.conf import settings
+from .forms import FileUploadForm
+from .watcher import route_file
+from .models import ScannedFile
+from django.db.models import Q
+import os
 
 def upload_file(request):
     if request.method == 'POST':
@@ -11,15 +14,37 @@ def upload_file(request):
             uploaded_file = request.FILES['file']
             incoming_path = os.path.join(settings.MEDIA_ROOT, 'incoming-scan', uploaded_file.name)
 
-            # Save the uploaded file to incoming-scan
-            with open(incoming_path, 'wb+') as destination:
+            # Save the uploaded file
+            with open(incoming_path, 'wb+') as dest:
                 for chunk in uploaded_file.chunks():
-                    destination.write(chunk)
+                    dest.write(chunk)
 
-            messages.success(request, f"File '{uploaded_file.name}' uploaded and sent for OCR processing.")
-            return redirect('upload')  # redirect to the same page
+            # Call OCR processing directly
+            try:
+                route_file(incoming_path)
+                messages.success(request, f"File '{uploaded_file.name}' uploaded and processed.")
+            except Exception as e:
+                messages.error(request, f"OCR failed: {e}")
 
+            return redirect('upload_file')
     else:
         form = FileUploadForm()
 
     return render(request, 'ocr/upload.html', {'form': form})
+
+def search_files(request):
+    query = request.GET.get('q', '').strip()
+    results = []
+
+    if query:
+        results = ScannedFile.objects.filter(
+            Q(original_filename__icontains=query) |
+            Q(renamed_filename__icontains=query) |
+            Q(extracted_name__icontains=query) |
+            Q(extracted_account__icontains=query)
+        )
+
+    return render(request, 'ocr/search.html', {
+        'results': results,
+        'query': query
+    })
