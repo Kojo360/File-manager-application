@@ -1,41 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>{% block title %}File Manager App{% endblock %}</title>
+  <meta charset="UTF-8">
+  <title>{% block title %}File Manager{% endblock %}</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
-    nav a { margin-right: 20px; }
-    .messages { color: green; }
-    .error { color: red; }
+    /* Page background */
+    body {
+      margin: 0;
+      height: 100vh;
+      background-color: #ffffff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Watermark */
+    body::before {
+      content: "MerbanTech";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 6rem;
+      color: rgba(0, 0, 0, 0.05);
+      white-space: nowrap;
+      z-index: 0;
+    }
+
+    /* Content container */
+    .container {
+      background-color: #ffffff;
+      border: 1px solid #000;
+      padding: 30px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 1;
+    }
+
+    h2 {
+      text-align: center;
+      color: #000;
+      margin-bottom: 20px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .messages {
+      margin-bottom: 15px;
+      padding: 10px;
+      background-color: #000;
+      color: #fff;
+      border-radius: 4px;
+    }
+
+    .upload-form input[type="file"],
+    .upload-form button {
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 4px;
+      border: 1px solid #000;
+      width: 100%;
+      font-size: 1rem;
+    }
+
+    .upload-form input[type="file"] {
+      background-color: #fff;
+      color: #000;
+      cursor: pointer;
+    }
+
+    .upload-form button {
+      background-color: #000;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .upload-form button:hover {
+      background-color: #333;
+    }
   </style>
 </head>
 <body>
-  <nav>
-    <a href="{% url 'upload_file' %}">Upload</a>
-    <a href="{% url 'search_files' %}">Search</a>
-    {% if user.is_authenticated %}
-      {% if user.is_staff %}
-        <span>(Admin)</span>
-      {% else %}
-        <span>(User)</span>
-      {% endif %}
-      | <a href="{% url 'logout' %}">Logout</a>
-    {% else %}
-      <a href="{% url 'login' %}">Login</a>
-    {% endif %}
-  </nav>
-
-  {% if messages %}
-    <div class="messages">
-      {% for msg in messages %}
-        <p class="{{ msg.tags }}">{{ msg }}</p>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  <hr />
 
   {% block content %}{% endblock %}
+
 </body>
 </html>

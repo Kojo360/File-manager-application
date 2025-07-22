@@ -6,23 +6,24 @@
 </head>
 <body>
   <h2>Search Processed Files</h2>
-  <form method="get">
-    <input type="text" name="q" value="{{ query }}" placeholder="Filename or account…">
+<form method="get" action="{% url 'search_files' %}">
+    <input type="text" name="q" placeholder="Search files..." value="{{ query }}">
     <button type="submit">Search</button>
-  </form>
+</form>
 
-  {% if results %}
+{% if results %}
     <ul>
-    {% for f in results %}
-      <li>
-        {{ f.renamed_filename }} (original: {{ f.original_filename }})
-        – <a href="{{ f.uploaded_file.url }}">Download</a>
-      </li>
-    {% endfor %}
+        {% for file in results %}
+            <li>
+                {{ file.new_filename }} — {{ file.uploaded_at }}
+                <a href="{{ file.file.url }}" target="_blank">Open</a>
+            </li>
+        {% endfor %}
     </ul>
-  {% elif query %}
-    <p>No results for “{{ query }}.”</p>
-  {% endif %}
+{% elif query %}
+    <p>No results found.</p>
+{% endif %}
+
 </body>
 </html>
 {% extends 'ocr/base.html' %}

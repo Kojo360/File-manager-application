@@ -1,4 +1,5 @@
 import os
+
 import time
 import shutil
 import re
@@ -9,6 +10,12 @@ from pdf2image import convert_from_path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import threading
+import os
+from django.conf import settings
+
+BASE_DIR = settings.MEDIA_ROOT
+# then build SCAN_DIR, FULLY_INDEXED_DIR, etc., off of BASE_DIR
+
 
 # === Logging Setup ===
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
