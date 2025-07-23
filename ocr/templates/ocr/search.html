@@ -1,53 +1,27 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Search Files</title>
-</head>
-<body>
-  <h2>Search Processed Files</h2>
-<form method="get" action="{% url 'search_files' %}">
-    <input type="text" name="q" placeholder="Search files..." value="{{ query }}">
-    <button type="submit">Search</button>
-</form>
-
-{% if results %}
-    <ul>
-        {% for file in results %}
-            <li>
-                {{ file.new_filename }} — {{ file.uploaded_at }}
-                <a href="{{ file.file.url }}" target="_blank">Open</a>
-            </li>
-        {% endfor %}
-    </ul>
-{% elif query %}
-    <p>No results found.</p>
-{% endif %}
-
-</body>
-</html>
 {% extends 'ocr/base.html' %}
 
 {% block title %}Search Files{% endblock %}
 
 {% block content %}
-  <h2>Search Processed Files</h2>
-  <form method="get" action="{% url 'search_files' %}">
-    <input type="text" name="q" value="{{ query }}" placeholder="Filename or account…">
-    <button type="submit">Search</button>
-  </form>
+  <div class="container">
+    <h2>Search Processed Files</h2>
 
-  {% if results %}
-    <ul>
-      {% for f in results %}
-        <li>
-          <strong>{{ f.renamed_filename }}</strong>
-          (orig: {{ f.original_filename }}) —
-          <a href="{{ f.uploaded_file.url }}">Download</a>
-        </li>
-      {% endfor %}
-    </ul>
-  {% elif query %}
-    <p>No results for “{{ query }}.”</p>
-  {% endif %}
+    <form method="get" action="{% url 'search' %}" class="search-form">
+      <input type="text" name="q" placeholder="Enter filename or content…" value="{{ query|default:'' }}">
+      <button type="submit">Search</button>
+    </form>
+
+    <div class="results">
+      {% if results %}
+        <p>Found {{ results|length }} file{{ results|length|pluralize }}:</p>
+        <ul>
+          {% for f in results %}
+            <li><a href="{{ f.path }}" target="_blank">{{ f.name }}</a></li>
+          {% endfor %}
+        </ul>
+      {% elif query %}
+        <p>No results for “{{ query }}.”</p>
+      {% endif %}
+    </div>
+  </div>
 {% endblock %}

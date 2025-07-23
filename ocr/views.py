@@ -7,22 +7,26 @@ from .models import ScannedFile
 from django.db.models import Q
 import os
 
+
 def upload_file(request):
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            uploaded_file = request.FILES['file']
-            incoming_path = os.path.join(settings.MEDIA_ROOT, 'incoming-scan', uploaded_file.name)
+            incoming_dir = os.path.join(settings.MEDIA_ROOT, 'incoming-scan')
+            os.makedirs(incoming_dir, exist_ok=True)
 
-            # Save the uploaded file
+            uploaded_file = request.FILES['file']
+            incoming_path = os.path.join(incoming_dir, uploaded_file.name)
+
+            # Save the uploaded file into media/incoming-scan/
             with open(incoming_path, 'wb+') as dest:
                 for chunk in uploaded_file.chunks():
                     dest.write(chunk)
 
-            # Call OCR processing directly
+            # Process it immediately
             try:
-                route_file(incoming_path)
-                messages.success(request, f"File '{uploaded_file.name}' uploaded and processed.")
+                dest_path = route_file(incoming_path)
+                messages.success(request, f"File processed and moved to: {dest_path}")
             except Exception as e:
                 messages.error(request, f"OCR failed: {e}")
 
@@ -48,3 +52,24 @@ def search_files(request):
         'results': results,
         'query': query
     })
+def search_view(request):
+    query = request.GET.get('q', '')
+    results = []
+
+    if query:
+        for root, dirs, files in os.walk(settings.MEDIA_ROOT):
+            for file in files:
+                if query.lower() in file.lower():
+                    rel_path = os.path.relpath(os.path.join(root, file), settings.MEDIA_ROOT)
+                    results.append({
+                        'name': file,
+                        'path': os.path.join(settings.MEDIA_URL, rel_path).replace('\\', '/')
+                    })
+
+    return render(request, 'search.html', {
+        'query': query,
+        'results': results,
+    })
+
+upload_dir = r'D:\File-manager-application\ocr\incoming-scan'
+os.makedirs(upload_dir, exist_ok=True)
