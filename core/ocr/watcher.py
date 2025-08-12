@@ -25,11 +25,12 @@ for d in (FULLY_INDEXED_DIR, PARTIAL_INDEXED_DIR, FAILED_DIR):
 # Auto-detect tesseract and poppler installations
 import subprocess
 import platform
+import shutil
 
 def get_tesseract_path():
     """Auto-detect tesseract installation"""
     # First, try the system PATH
-    tesseract_path = subprocess.which('tesseract')
+    tesseract_path = shutil.which('tesseract')
     if tesseract_path:
         return tesseract_path
     
@@ -55,7 +56,7 @@ def get_tesseract_path():
 def get_poppler_path():
     """Auto-detect poppler installation"""
     # For Docker/Linux, poppler utilities should be in PATH
-    if subprocess.which('pdftoppm'):
+    if shutil.which('pdftoppm'):
         return None  # Use system PATH
     
     # Windows fallback

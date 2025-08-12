@@ -31,6 +31,7 @@ def debug_ocr(request):
     """Debug OCR installation and capabilities"""
     import subprocess
     import sys
+    import shutil
     
     debug_info = []
     
@@ -43,7 +44,7 @@ def debug_ocr(request):
         result = subprocess.run(['tesseract', '--version'], 
                               capture_output=True, text=True, timeout=10)
         debug_info.append(f"Tesseract version: {result.stdout.split()[1] if result.stdout else 'Unknown'}")
-        debug_info.append(f"Tesseract path: {subprocess.which('tesseract')}")
+        debug_info.append(f"Tesseract path: {shutil.which('tesseract')}")
     except Exception as e:
         debug_info.append(f"Tesseract ERROR: {str(e)}")
     
@@ -76,7 +77,7 @@ def debug_ocr(request):
         
         # Check poppler utilities
         for util in ['pdftoppm', 'pdfinfo']:
-            path = subprocess.which(util)
+            path = shutil.which(util)
             debug_info.append(f"{util} path: {path if path else 'NOT FOUND'}")
             
     except Exception as e:
