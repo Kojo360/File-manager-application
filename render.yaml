@@ -1,11 +1,10 @@
 services:
   - type: web
     name: file-manager-app
-    env: python
+    env: docker
     plan: free
     region: oregon
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput --clear && python manage.py migrate --noinput
-    startCommand: gunicorn backend.wsgi:application
+    dockerfilePath: ./Dockerfile
     autoDeploy: true
     envVars:
       - key: SECRET_KEY
