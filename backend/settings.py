@@ -84,9 +84,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-import dj_database_url
-
-# Default to SQLite for local development
+# Use SQLite for now (works everywhere)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -94,13 +92,14 @@ DATABASES = {
     }
 }
 
-# Override with PostgreSQL if DATABASE_URL is provided (production)
-if 'DATABASE_URL' in os.environ:
-    DATABASES['default'] = dj_database_url.parse(
-        os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+# Uncomment below when PostgreSQL is working
+# import dj_database_url
+# if 'DATABASE_URL' in os.environ:
+#     DATABASES['default'] = dj_database_url.parse(
+#         os.environ.get('DATABASE_URL'),
+#         conn_max_age=600,
+#         conn_health_checks=True,
+#     )
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
