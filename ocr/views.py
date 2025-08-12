@@ -29,15 +29,73 @@ def test_view(request):
 
 
 def upload_file(request):
-    """Main upload view - simplified for production deployment"""
+    """Main upload view with full OCR functionality"""
     try:
         if request.method == 'POST':
             form = FileUploadForm(request.POST, request.FILES)
             if form.is_valid():
-                # For now, just show success without file processing
-                # This avoids file system issues during initial deployment
-                messages.success(request, f"Files uploaded successfully! (Processing temporarily disabled for deployment)")
+                # Create a simple uploads directory in the container
+                uploads_dir = '/tmp/uploads'
+                os.makedirs(uploads_dir, exist_ok=True)
+
+                uploaded_files = request.FILES.getlist('files')
+                
+                # Limit to 50 files for production
+                if len(uploaded_files) > 50:
+                    messages.error(request, "You can upload a maximum of 50 files at once.")
+                    return redirect('upload_file')
+
+                processed_count = 0
+                failed_count = 0
+
+                for uploaded_file in uploaded_files:
+                    try:
+                        # Save temporarily
+                        temp_path = os.path.join(uploads_dir, uploaded_file.name)
+                        with open(temp_path, 'wb+') as dest:
+                            for chunk in uploaded_file.chunks():
+                                dest.write(chunk)
+
+                        # Log the upload
+                        log_file_processing(
+                            original_filename=uploaded_file.name,
+                            status='uploaded',
+                            file_size=uploaded_file.size
+                        )
+
+                        # Process with OCR if available
+                        if WATCHER_AVAILABLE:
+                            processed_path = route_file(temp_path)
+                            status = 'processed'
+                        else:
+                            status = 'uploaded'
+
+                        # Log final status
+                        log_file_processing(
+                            original_filename=uploaded_file.name,
+                            status=status,
+                            file_size=uploaded_file.size
+                        )
+
+                        processed_count += 1
+
+                    except Exception as e:
+                        log_file_processing(
+                            original_filename=uploaded_file.name,
+                            status='failed',
+                            error_message=str(e),
+                            file_size=uploaded_file.size if hasattr(uploaded_file, 'size') else 0
+                        )
+                        failed_count += 1
+
+                # Show results
+                if processed_count > 0:
+                    messages.success(request, f"Successfully processed {processed_count} files!")
+                if failed_count > 0:
+                    messages.warning(request, f"Failed to process {failed_count} files.")
+
                 return redirect('upload_file')
+                
         else:
             form = FileUploadForm()
 
@@ -45,7 +103,6 @@ def upload_file(request):
         try:
             statistics = get_processing_statistics()
         except Exception as e:
-            # Handle case where database tables might not be ready
             statistics = {
                 'total_files': 0,
                 'fully_indexed': 0,
@@ -59,10 +116,11 @@ def upload_file(request):
         return render(request, 'ocr/upload.html', {
             'form': form,
             'statistics': statistics,
+            'watcher_available': WATCHER_AVAILABLE,
         })
+        
     except Exception as e:
-        # Fallback for any unexpected errors
-        return HttpResponse(f"<h1>Upload Page Error</h1><p>Error: {str(e)}</p><p><a href='/test/'>Try test page</a></p>")
+        return HttpResponse(f"<h1>Upload Error</h1><p>{str(e)}</p><p><a href='/test/'>Test page</a> | <a href='/search/'>Search</a></p>")
 
 
 def search_files(request):

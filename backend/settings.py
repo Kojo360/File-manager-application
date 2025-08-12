@@ -25,8 +25,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-^yin+e7k-*5^$5=%s#91_yw0^it21)zp@)a93ss_!7!=kv(#et')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Temporarily enable DEBUG to see detailed error information
-DEBUG = True  # os.environ.get('DEBUG', 'True').lower() == 'true'
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 # Enable logging for debugging
 import logging
