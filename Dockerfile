@@ -21,11 +21,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
+# Copy and make startup script executable
+COPY start.sh .
+RUN chmod +x start.sh
+
 # Collect static files (build time)
 RUN python manage.py collectstatic --noinput
 
 # Expose port (Railway sets PORT at runtime)
 EXPOSE 8000
 
-# Start script that runs migrations then starts server
-CMD python manage.py migrate --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2
+# Use startup script
+CMD ["./start.sh"]
