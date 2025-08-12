@@ -34,7 +34,17 @@ import shutil
 
 def get_tesseract_path():
     """Auto-detect tesseract installation"""
-    # First, try the system PATH
+    # For Docker/Linux environments, try explicit paths first
+    linux_paths = [
+        '/usr/bin/tesseract',
+        '/usr/local/bin/tesseract'
+    ]
+    
+    for path in linux_paths:
+        if os.path.exists(path):
+            return path
+    
+    # Then try system PATH
     tesseract_path = shutil.which('tesseract')
     if tesseract_path:
         return tesseract_path
@@ -71,11 +81,29 @@ def get_poppler_path():
 TESSERACT_CMD = get_tesseract_path()
 POPPLER_PATH = get_poppler_path()
 
-# Set pytesseract command
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+# Set pytesseract command - ensure it's set properly
+if TESSERACT_CMD:
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+    logging.info(f"Tesseract configured: {TESSERACT_CMD}")
+else:
+    # Fallback to default command
+    pytesseract.pytesseract.tesseract_cmd = 'tesseract'
+    logging.warning("Tesseract path not found, using default 'tesseract' command")
 
 logging.info(f"Tesseract path: {TESSERACT_CMD}")
 logging.info(f"Poppler path: {POPPLER_PATH or 'System PATH'}")
+
+# Verify tesseract is working
+try:
+    import subprocess
+    result = subprocess.run([pytesseract.pytesseract.tesseract_cmd, '--version'], 
+                          capture_output=True, text=True, timeout=5)
+    if result.returncode == 0:
+        logging.info(f"Tesseract verification successful: {result.stdout.split()[1] if result.stdout else 'Unknown version'}")
+    else:
+        logging.error(f"Tesseract verification failed: {result.stderr}")
+except Exception as e:
+    logging.error(f"Tesseract verification error: {e}")
 
 # === OCR and File Routing Logic ===
 def extract_text(path):
