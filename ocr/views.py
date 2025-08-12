@@ -12,13 +12,14 @@ def upload_file(request):
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            incoming_dir = os.path.join(settings.MEDIA_ROOT, 'incoming-scan')
+
+            # Save to top-level incoming-scan directory
+            incoming_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../incoming-scan'))
             os.makedirs(incoming_dir, exist_ok=True)
 
             uploaded_file = request.FILES['file']
             incoming_path = os.path.join(incoming_dir, uploaded_file.name)
 
-            # Save the uploaded file into media/incoming-scan/
             with open(incoming_path, 'wb+') as dest:
                 for chunk in uploaded_file.chunks():
                     dest.write(chunk)

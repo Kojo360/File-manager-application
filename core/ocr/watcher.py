@@ -9,18 +9,21 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # === Directories ===
-SCAN_DIR            = "incoming-scan"
-FULLY_INDEXED_DIR   = "fully_indexed"
-PARTIAL_INDEXED_DIR = "partially_indexed"
-FAILED_DIR          = "failed"
+
+# Use absolute paths for all output directories at the project root
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+SCAN_DIR            = os.path.join(BASE_DIR, "incoming-scan")
+FULLY_INDEXED_DIR   = os.path.join(BASE_DIR, "fully_indexed")
+PARTIAL_INDEXED_DIR = os.path.join(BASE_DIR, "partially_indexed")
+FAILED_DIR          = os.path.join(BASE_DIR, "failed")
 
 # Make sure these exist
 for d in (FULLY_INDEXED_DIR, PARTIAL_INDEXED_DIR, FAILED_DIR):
     os.makedirs(d, exist_ok=True)
 
 # === OCR Tools ===
-POPPLER_PATH  = r"C:\Program Files\poppler-24.08.0\Library\bin"  # adjust as needed
-TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"               # adjust as needed
+POPPLER_PATH  = r"C:\poppler-24.08.0\Library\bin"  # adjust as needed
+TESSERACT_CMD = r"C:\Users\KC-User\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"               # adjust as needed
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 # === Helpers ===
@@ -37,13 +40,61 @@ def extract_text(path):
     else:
         img = Image.open(path).convert("RGB")
         text = pytesseract.image_to_string(img)
+    print(f"[DEBUG] OCR extracted from {path}:\n{text}\n---END OCR---")
     return text
 
 def parse_fields(text):
-    m_name    = re.search(r"name\s*:\s*([A-Za-z ]+)", text, re.IGNORECASE)
-    m_account = re.search(r"account\s*no\s*[:\-]?\s*([A-Za-z0-9\-]+)", text, re.IGNORECASE)
-    name    = m_name.group(1).strip().replace(" ", "_") if m_name else None
-    account = m_account.group(1).strip()                if m_account else None
+    # Extract individual name components from various possible fields
+    patterns_name = [
+        r"name\s*of\s*account\s*holder\s*\([^)]+\)\s*[:\-]?\s*([A-Za-z ]+?)(?:\s*\n|\s*Address|\s*Account|\s*DOB|\s*Occupation|$)",
+        r"surname\s*[:\-]?\s*([A-Za-z ]+?)(?:\s*\n|\s*Address|\s*Account|\s*DOB|\s*Occupation|$)",
+        r"first\s*name\s*[:\-]?\s*([A-Za-z ]+?)(?:\s*\n|\s*Address|\s*Account|\s*DOB|\s*Occupation|$)",
+        r"other\s*names?\s*[:\-]?\s*([A-Za-z ]+?)(?:\s*\n|\s*Address|\s*Account|\s*DOB|\s*Occupation|$)",
+        r"account\s*name\s*[:\-]?\s*([A-Za-z ]+?)(?:\s*\n|\s*Address|\s*Account|\s*DOB|\s*Occupation|$)",
+        r"print\s*name\s*[:\-]?\s*([A-Za-z ]+?)(?:\s*\n|\s*Address|\s*Account|\s*DOB|\s*Occupation|$)",
+    ]
+    name_parts = []
+    for pat in patterns_name:
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            name_parts.append(m.group(1).strip())
+    # If no specific name fields matched, try to extract the value after the last colon in any line containing 'name' (but not 'of account holder')
+    if not name_parts:
+        for line in text.splitlines():
+            if 'name' in line.lower() and 'of account holder' not in line.lower():
+                if ':' in line:
+                    value = line.split(':')[-1].strip()
+                    if value:
+                        name_parts.append(value)
+    # Remove duplicates while preserving order
+    seen = set()
+    name_parts_unique = []
+    for part in name_parts:
+        if part not in seen:
+            name_parts_unique.append(part)
+            seen.add(part)
+    name = " ".join(name_parts_unique) if name_parts_unique else None
+    
+    # Try multiple account number patterns
+    patterns = [
+        r"client\s*csd\s*securities\s*account\s*no\s*[:\-]?\s*([0-9O]{5,})",  # Client CSD Securities Account No
+        r"banking\s*information.*?account\s*number\s*[:\-]?\s*([0-9O]{5,})",  # Account Number under Banking information
+        r"account\s*number\s*[:\-]?\s*([0-9O]{5,})",  # ACCOUNT NUMBER: 34007802837
+        r"account\s*no\s*[:\-]?\s*([0-9O]{5,})",     # ACCOUNT NO: 34007802837
+        r"acct\s*no\s*[:\-]?\s*([0-9O]{5,})",        # ACCT NO: 34007802837
+        r"a/c\s*no\s*[:\-]?\s*([0-9O]{5,})",         # A/C NO: 34007802837
+        r"number\s*[:\-]?\s*([0-9O]{5,})",           # Just NUMBER: 34007802837
+    ]
+    
+    account = None
+    
+    for pattern in patterns:
+        m_account = re.search(pattern, text, re.IGNORECASE)
+        if m_account:
+            raw_acc = m_account.group(1).strip().replace(" ", "")
+            account = raw_acc.replace("O", "0")  # Fix common OCR error
+            break
+    
     return name, account
 
 def route_file(src_path):
@@ -52,6 +103,7 @@ def route_file(src_path):
 
     text = extract_text(src_path)
     name, account = parse_fields(text)
+    print(f"[DEBUG] Parsed fields for {src_path}: name='{name}', account='{account}'")
 
     is_image = ext in [".png", ".jpg", ".jpeg"]
 
@@ -168,7 +220,7 @@ class ScanHandler(FileSystemEventHandler):
 
 def start_watcher():
     abs_scan_dir = os.path.abspath(SCAN_DIR)
-    print(f"[WATCHING] {abs_scan_dir} → (fully|partial|failed)")
+    print(f"[WATCHING] {abs_scan_dir} -> (fully|partial|failed)")
     os.makedirs(SCAN_DIR, exist_ok=True)
     obs = Observer()
     obs.schedule(ScanHandler(), path=SCAN_DIR, recursive=False)

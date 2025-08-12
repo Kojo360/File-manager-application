@@ -15,11 +15,12 @@ from django.conf import settings
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 # === Directory Configuration ===
-BASE_MEDIA_DIR = settings.MEDIA_ROOT
-SCAN_DIR            = os.path.join(BASE_MEDIA_DIR, "incoming-scan")
-FULLY_INDEXED_DIR   = os.path.join(BASE_MEDIA_DIR, "fully_indexed")
-PARTIAL_INDEXED_DIR = os.path.join(BASE_MEDIA_DIR, "partially_indexed")
-FAILED_DIR          = os.path.join(BASE_MEDIA_DIR, "failed")
+# Use absolute paths for all output directories at the project root
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+SCAN_DIR            = os.path.join(BASE_DIR, "incoming-scan")
+FULLY_INDEXED_DIR   = os.path.join(BASE_DIR, "fully_indexed")
+PARTIAL_INDEXED_DIR = os.path.join(BASE_DIR, "partially_indexed")
+FAILED_DIR          = os.path.join(BASE_DIR, "failed")
 
 # Ensure required directories exist
 for d in (SCAN_DIR, FULLY_INDEXED_DIR, PARTIAL_INDEXED_DIR, FAILED_DIR):
@@ -27,7 +28,7 @@ for d in (SCAN_DIR, FULLY_INDEXED_DIR, PARTIAL_INDEXED_DIR, FAILED_DIR):
 
 # === OCR Configuration ===
 POPPLER_PATH = r"C:\poppler-24.08.0\Library\bin"  # Adjust if needed
-TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"  # Adjust if needed
+TESSERACT_CMD = r"C:\Users\KC-User\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"  # Updated to actual install location
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 # === OCR and File Routing Logic ===
