@@ -6,7 +6,9 @@ NIXPACKS_PYTHON_VERSION = "3.13"
 nixPkgs = [
   "python313", 
   "tesseract", 
-  "poppler_utils"
+  "poppler_utils",
+  "postgresql",
+  "libpq"
 ]
 
 [phases.install]

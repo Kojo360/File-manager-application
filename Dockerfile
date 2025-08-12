@@ -1,11 +1,14 @@
-# Dockerfile - OPTION B (backup if apt.txt doesn't work)
+# Dockerfile - Railway deployment with PostgreSQL support
 FROM python:3.13-slim
 
-# Install apt packages including tesseract and poppler
+# Install system dependencies including PostgreSQL dev libraries
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       tesseract-ocr \
       poppler-utils \
+      libpq-dev \
+      gcc \
+      build-essential \
  && rm -rf /var/lib/apt/lists/*
 
 # Create app dir
@@ -22,6 +25,6 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 RUN python manage.py migrate --noinput
 
-# Expose port and run Gunicorn
-ENV PORT 10000
-CMD gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+# Expose port and run Gunicorn with proper PORT binding
+ENV PORT=8000
+CMD python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2
