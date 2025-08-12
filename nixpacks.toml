@@ -1,0 +1,18 @@
+# nixpacks.toml - Railway/Nixpacks configuration for Django + OCR
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.13"
+
+[phases.setup]
+nixPkgs = ["python313", "tesseract", "poppler_utils", "gcc", "pkg-config"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = [
+  "python manage.py collectstatic --noinput --clear",
+  "python manage.py migrate --noinput"
+]
+
+[start]
+cmd = "gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2"
