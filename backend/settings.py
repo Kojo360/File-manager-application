@@ -27,11 +27,20 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-^yin+e7k-*5^$5=%s#91_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
+# Enable logging for debugging
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.render.com',
+    'file-manager-application.onrender.com',
     '.vercel.app',
+    '.railway.app',
     os.environ.get('ALLOWED_HOST', 'localhost'),
 ]
 
