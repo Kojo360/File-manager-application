@@ -1,0 +1,300 @@
+{% extends 'ocr/base.html' %}
+{% load ocr_filters %}
+
+{% block title %}File Processing Statistics - File Manager{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <!-- Statistics Header -->
+      <div class="card">
+        <div class="card-header text-center bg-transparent">
+          <h2 class="mb-0"><i class="fas fa-chart-line me-2"></i>File Processing Statistics</h2>
+          <p class="text-muted">Comprehensive analytics and processing insights</p>
+        </div>
+      </div>
+
+      <!-- Overall Statistics Cards -->
+      <div class="row stats-cards mt-4">
+        <div class="col-md-3">
+          <div class="card stat-card text-center">
+            <div class="stat-icon text-info">
+              <i class="fas fa-upload"></i>
+            </div>
+            <h3 class="mb-1">{{ processing_stats.overall.total_uploaded|default:0 }}</h3>
+            <h6>Total Uploaded</h6>
+            <small class="text-muted">Files Processed</small>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stat-card text-center">
+            <div class="stat-icon text-success">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <h3 class="mb-1">{{ processing_stats.overall.total_fully_indexed|default:0 }}</h3>
+            <h6>Fully Indexed</h6>
+            <small class="text-muted">Complete Success</small>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stat-card text-center">
+            <div class="stat-icon text-warning">
+              <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h3 class="mb-1">{{ processing_stats.overall.total_partially_indexed|default:0 }}</h3>
+            <h6>Partially Indexed</h6>
+            <small class="text-muted">Partial Success</small>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stat-card text-center">
+            <div class="stat-icon text-danger">
+              <i class="fas fa-times-circle"></i>
+            </div>
+            <h3 class="mb-1">{{ processing_stats.overall.total_failed|default:0 }}</h3>
+            <h6>Failed</h6>
+            <small class="text-muted">Processing Failed</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Metrics -->
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-transparent">
+              <h5 class="mb-0">
+                <i class="fas fa-tachometer-alt me-2 text-success"></i>
+                Performance Metrics
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="metric-item">
+                <div class="metric-label">Success Rate</div>
+                <div class="metric-value text-success">{{ success_rate }}%</div>
+                <div class="progress mt-2">
+                  <div class="progress-bar bg-success" style="width: {{ success_rate }}%"></div>
+                </div>
+              </div>
+              
+              <div class="metric-item mt-3">
+                <div class="metric-label">Total Storage Used</div>
+                <div class="metric-value text-info">{{ total_size_formatted }}</div>
+              </div>
+              
+              <div class="metric-item mt-3">
+                <div class="metric-label">Average Processing Success</div>
+                <div class="metric-value text-primary">
+                  {% if processing_stats.overall.total_uploaded > 0 %}
+                    {{ processing_stats.overall.total_fully_indexed|floatformat:0 }} / {{ processing_stats.overall.total_uploaded|floatformat:0 }} files
+                  {% else %}
+                    No data yet
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-transparent">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-pie me-2 text-primary"></i>
+                Processing Breakdown
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="breakdown-item">
+                <div class="breakdown-label">
+                  <span class="badge bg-success me-2"></span>Fully Indexed
+                </div>
+                <div class="breakdown-value">{{ processing_stats.overall.total_fully_indexed|default:0 }}</div>
+              </div>
+              
+              <div class="breakdown-item">
+                <div class="breakdown-label">
+                  <span class="badge bg-warning me-2"></span>Partially Indexed
+                </div>
+                <div class="breakdown-value">{{ processing_stats.overall.total_partially_indexed|default:0 }}</div>
+              </div>
+              
+              <div class="breakdown-item">
+                <div class="breakdown-label">
+                  <span class="badge bg-danger me-2"></span>Failed Processing
+                </div>
+                <div class="breakdown-value">{{ processing_stats.overall.total_failed|default:0 }}</div>
+              </div>
+              
+              <div class="breakdown-item">
+                <div class="breakdown-label">
+                  <span class="badge bg-info me-2"></span>Total Processed
+                </div>
+                <div class="breakdown-value">{{ processing_stats.overall.total_processed|default:0 }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Activity Chart -->
+      {% if daily_stats %}
+      <div class="card mt-4">
+        <div class="card-header bg-transparent">
+          <h5 class="mb-0">
+            <i class="fas fa-calendar-alt me-2 text-info"></i>
+            Daily Processing Activity (Last 30 Days)
+          </h5>
+          <small class="text-muted">Track your daily file processing trends</small>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            {% for day_stat in daily_stats %}
+              <div class="col-md-4 col-lg-3 mb-3">
+                <div class="daily-stat-card">
+                  <h6 class="mb-2">{{ day_stat.date|date:"M d, Y" }}</h6>
+                  
+                  <div class="daily-numbers">
+                    <div class="daily-number success">
+                      <i class="fas fa-check-circle"></i>
+                      <span>{{ day_stat.fully_indexed }}</span>
+                    </div>
+                    <div class="daily-number warning">
+                      <i class="fas fa-exclamation-circle"></i>
+                      <span>{{ day_stat.partially_indexed }}</span>
+                    </div>
+                    <div class="daily-number danger">
+                      <i class="fas fa-times-circle"></i>
+                      <span>{{ day_stat.failed }}</span>
+                    </div>
+                  </div>
+                  
+                  <div class="daily-total">
+                    <strong>{{ day_stat.total_uploaded }} uploaded</strong>
+                  </div>
+                  
+                  {% if day_stat.total_uploaded > 0 %}
+                    <div class="daily-success-rate">
+                      Success: {{ day_stat.success_rate }}%
+                    </div>
+                  {% endif %}
+                  
+                  {% if day_stat.total_file_size > 0 %}
+                    <small class="text-muted">{{ day_stat.total_file_size|filesizeformat }}</small>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Recent Processing Activity -->
+      {% if recent_activity %}
+      <div class="card mt-4">
+        <div class="card-header bg-transparent">
+          <h5 class="mb-0">
+            <i class="fas fa-history me-2 text-primary"></i>
+            Recent Processing Activity
+          </h5>
+          <small class="text-muted">Latest 50 file processing events</small>
+        </div>
+        <div class="card-body">
+          <div class="activity-timeline">
+            {% for activity in recent_activity %}
+              <div class="activity-item">
+                <div class="activity-icon">
+                  {% if activity.status == 'fully_indexed' %}
+                    <i class="fas fa-check-circle text-success"></i>
+                  {% elif activity.status == 'partially_indexed' %}
+                    <i class="fas fa-exclamation-circle text-warning"></i>
+                  {% elif activity.status == 'failed' %}
+                    <i class="fas fa-times-circle text-danger"></i>
+                  {% else %}
+                    <i class="fas fa-upload text-info"></i>
+                  {% endif %}
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">{{ activity.original_filename }}</div>
+                  <div class="activity-status">
+                    Status: <span class="badge bg-{{ activity.status|status_color }}">{{ activity.get_status_display }}</span>
+                    {% if activity.final_filename and activity.final_filename != activity.original_filename %}
+                      → <strong>{{ activity.final_filename }}</strong>
+                    {% endif %}
+                  </div>
+                  <div class="activity-details">
+                    {% if activity.extracted_name %}
+                      <span class="detail-item">
+                        <i class="fas fa-user me-1"></i>{{ activity.extracted_name }}
+                      </span>
+                    {% endif %}
+                    {% if activity.extracted_account %}
+                      <span class="detail-item">
+                        <i class="fas fa-credit-card me-1"></i>{{ activity.extracted_account }}
+                      </span>
+                    {% endif %}
+                  </div>
+                  <div class="activity-time">
+                    <i class="fas fa-clock me-1"></i>{{ activity.processed_at|timesince }} ago
+                    {% if activity.file_size %}
+                      <span class="ms-3"><i class="fas fa-file me-1"></i>{{ activity.file_size|filesizeformat }}</span>
+                    {% endif %}
+                  </div>
+                  {% if activity.error_message %}
+                    <div class="activity-error">
+                      <i class="fas fa-exclamation-triangle me-1"></i>{{ activity.error_message|truncatechars:100 }}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Action Buttons -->
+      <div class="row mt-4">
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-upload fa-2x text-primary mb-3"></i>
+              <h5>Upload More Files</h5>
+              <p class="text-muted">Process additional documents</p>
+              <a href="{% url 'upload_file' %}" class="btn btn-outline-primary">
+                <i class="fas fa-upload me-1"></i>Upload Files
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-search fa-2x text-success mb-3"></i>
+              <h5>Browse Files</h5>
+              <p class="text-muted">Search processed documents</p>
+              <a href="{% url 'search_files' %}" class="btn btn-outline-success">
+                <i class="fas fa-search me-1"></i>Browse Files
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-sync fa-2x text-info mb-3"></i>
+              <h5>Refresh Data</h5>
+              <p class="text-muted">Update statistics</p>
+              <button onclick="location.reload()" class="btn btn-outline-info">
+                <i class="fas fa-sync me-1"></i>Refresh Stats
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

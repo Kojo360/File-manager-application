@@ -1,0 +1,129 @@
+{% extends 'ocr/base.html' %}
+
+{% block title %}Search Files - File Manager{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <!-- Search Header -->
+      <div class="card">
+        <div class="card-header text-center bg-transparent">
+          <h2 class="mb-0"><i class="fas fa-search me-2"></i>Search Processed Files</h2>
+          <p class="text-muted">Find your documents by filename or content</p>
+        </div>
+        <div class="card-body">
+          <!-- Search Form -->
+          <form method="get" action="{% url 'search' %}" class="search-form">
+            <div class="input-group mb-3">
+              <span class="input-group-text bg-transparent border-end-0">
+                <i class="fas fa-search text-muted"></i>
+              </span>
+              <input type="text" 
+                     name="q" 
+                     class="form-control border-start-0 ps-0" 
+                     placeholder="Enter filename or content..." 
+                     value="{{ query|default:'' }}"
+                     style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search me-1"></i>Search
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Search Results -->
+      <div class="search-results mt-4">
+        {% if results %}
+          <div class="card">
+            <div class="card-header bg-transparent">
+              <h5 class="mb-0">
+                <i class="fas fa-file-alt me-2 text-success"></i>
+                Found {{ results|length }} file{{ results|length|pluralize }}
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                {% for f in results %}
+                  <div class="col-md-6 mb-3">
+                    <div class="file-result">
+                      <div class="file-icon">
+                        {% if f.name|slice:"-4:" == ".pdf" %}
+                          <i class="fas fa-file-pdf text-danger"></i>
+                        {% else %}
+                          <i class="fas fa-file-image text-primary"></i>
+                        {% endif %}
+                      </div>
+                      <div class="file-info">
+                        <h6 class="mb-1">{{ f.name }}</h6>
+                        <small class="text-muted">{{ f.path|truncatechars:50 }}</small>
+                      </div>
+                      <div class="file-actions">
+                        <a href="{{ f.path }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                          <i class="fas fa-external-link-alt"></i>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        {% elif query %}
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-search fa-3x text-muted mb-3"></i>
+              <h5>No Results Found</h5>
+              <p class="text-muted">No files found for "{{ query }}"</p>
+              <small class="text-muted">Try different keywords or check your spelling</small>
+            </div>
+          </div>
+        {% else %}
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+              <h5>Ready to Search</h5>
+              <p class="text-muted">Enter keywords to find your processed documents</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-upload fa-2x text-primary mb-3"></i>
+              <h5>Upload More Files</h5>
+              <p class="text-muted">Process additional documents</p>
+              <a href="{% url 'upload_file' %}" class="btn btn-outline-primary">
+                <i class="fas fa-upload me-1"></i>Upload Files
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-filter fa-2x text-info mb-3"></i>
+              <h5>Advanced Search</h5>
+              <p class="text-muted">Filter by file type or date</p>
+              <button class="btn btn-outline-info" onclick="showAdvancedSearch()">
+                <i class="fas fa-cog me-1"></i>Advanced
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showAdvancedSearch() {
+  alert('Advanced search features coming soon!');
+}
+</script>
+{% endblock %}

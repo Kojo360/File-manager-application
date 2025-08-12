@@ -1,25 +1,153 @@
 {% extends 'ocr/base.html' %}
 
-{% block title %}Upload File{% endblock %}
+{% block title %}Upload Files - File Manager{% endblock %}
 
 {% block content %}
-  <div class="container">
-    <h2>Upload Scanned File</h2>
-
-    {% if messages %}
-      <div class="messages">
-        {% for msg in messages %}
-          <p class="{{ msg.tags }}">{{ msg }}</p>
-        {% endfor %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <!-- Statistics Cards -->
+      <div class="row stats-cards">
+        <div class="col-md-4">
+          <div class="card stat-card">
+            <div class="stat-icon text-primary">
+              <i class="fas fa-upload"></i>
+            </div>
+            <h5>Quick Upload</h5>
+            <p class="text-muted mb-0">Drag & Drop or Browse</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card stat-card">
+            <div class="stat-icon text-success">
+              <i class="fas fa-robot"></i>
+            </div>
+            <h5>OCR Processing</h5>
+            <p class="text-muted mb-0">Automatic Text Extraction</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card stat-card">
+            <div class="stat-icon text-info">
+              <i class="fas fa-folder-open"></i>
+            </div>
+            <h5>Auto Organization</h5>
+            <p class="text-muted mb-0">Smart File Sorting</p>
+          </div>
+        </div>
       </div>
-    {% endif %}
 
-<form method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}" class="upload-form">
+      <!-- Upload Form Card -->
+      <div class="card">
+        <div class="card-header text-center bg-transparent">
+          <h2 class="mb-0"><i class="fas fa-cloud-upload-alt me-2"></i>Upload Scanned Files</h2>
+          <p class="text-muted">Support for PDF and image files (PNG, JPG, JPEG)</p>
+        </div>
+        <div class="card-body">
+          {% if messages %}
+            <div class="messages">
+              {% for msg in messages %}
+                {% if msg.tags == 'success' %}
+                  <div class="alert alert-success" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>{{ msg }}
+                  </div>
+                {% elif msg.tags == 'error' %}
+                  <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i>{{ msg }}
+                  </div>
+                {% else %}
+                  <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>{{ msg }}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
 
-      {% csrf_token %}
-      {{ form.file.label_tag }}<br>
-      {{ form.file }}<br>
-      <button type="submit">Upload</button>
-    </form>
+          <form method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}" class="upload-form">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">{{ form.files.label }}</label>
+              <div class="file-input-wrapper">
+                {{ form.files }}
+                <div class="file-input-display">
+                  <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #667eea;"></i>
+                  <div class="mt-2">Drop files here or click to browse</div>
+                  <small class="text-muted">Support for PDF and image files (up to 100 files)</small>
+                </div>
+              </div>
+              <div class="file-count"></div>
+            </div>
+
+            <div class="progress-container">
+              <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+              </div>
+              <small class="text-muted mt-1">Processing files...</small>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-upload me-2"></i>Upload & Process Files
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-search fa-2x text-primary mb-3"></i>
+              <h5>Search Files</h5>
+              <p class="text-muted">Find processed documents quickly</p>
+              <a href="{% url 'search_files' %}" class="btn btn-outline-primary">
+                <i class="fas fa-search me-1"></i>Search Now
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body text-center">
+              <i class="fas fa-chart-bar fa-2x text-success mb-3"></i>
+              <h5>File Statistics</h5>
+              <p class="text-muted">View processing analytics</p>
+              <a href="{% url 'statistics' %}" class="btn btn-outline-success">
+                <i class="fas fa-chart-line me-1"></i>View Stats
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
+
+<script>
+// Enhanced file upload handling
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('.upload-form');
+  const progressContainer = document.querySelector('.progress-container');
+  const progressBar = document.querySelector('.progress-bar');
+  
+  if (form) {
+    form.addEventListener('submit', function() {
+      progressContainer.style.display = 'block';
+      // Simulate progress (you can make this real with AJAX)
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        progressBar.style.width = progress + '%';
+        if (progress >= 90) {
+          clearInterval(interval);
+        }
+      }, 200);
+    });
+  }
+});
+</script>
 {% endblock %}

@@ -7,19 +7,19 @@ def scanned_file_path(instance, filename):
     return f'scanned/{filename}'
 
 class ScannedFile(models.Model):
-    original_name = models.CharField(max_length=255)  # Keep existing field name
-    renamed_file = models.CharField(max_length=255)   # Keep existing field name
-    file_path = models.FileField(upload_to='scanned_files/')  # Keep existing upload path
-    extracted_text = models.TextField()  # Keep existing field name
+    original_filename = models.CharField(max_length=255)
+    renamed_filename = models.CharField(max_length=255, unique=True)
+    uploaded_file = models.FileField(upload_to=scanned_file_path)
+    scanned_text = models.TextField(blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.renamed_file
+        return self.renamed_filename
 
     def delete(self, *args, **kwargs):
         # Remove file from storage when record is deleted
-        if self.file_path and os.path.isfile(self.file_path.path):
-            os.remove(self.file_path.path)
+        if self.uploaded_file and os.path.isfile(self.uploaded_file.path):
+            os.remove(self.uploaded_file.path)
         super().delete(*args, **kwargs)
 
 class FileProcessingLog(models.Model):

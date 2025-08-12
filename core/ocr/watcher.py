@@ -40,7 +40,6 @@ def extract_text(path):
     else:
         img = Image.open(path).convert("RGB")
         text = pytesseract.image_to_string(img)
-    print(f"[DEBUG] OCR extracted from {path}:\n{text}\n---END OCR---")
     return text
 
 def parse_fields(text):
@@ -80,6 +79,7 @@ def parse_fields(text):
         r"client\s*csd\s*securities\s*account\s*no\s*[:\-]?\s*([0-9O]{5,})",  # Client CSD Securities Account No
         r"banking\s*information.*?account\s*number\s*[:\-]?\s*([0-9O]{5,})",  # Account Number under Banking information
         r"account\s*number\s*[:\-]?\s*([0-9O]{5,})",  # ACCOUNT NUMBER: 34007802837
+        r"account\s*number\s*[:\-]?\s*([0-9O ]{5,})",  # ACCOUNT NUMBER with possible spaces
         r"account\s*no\s*[:\-]?\s*([0-9O]{5,})",     # ACCOUNT NO: 34007802837
         r"acct\s*no\s*[:\-]?\s*([0-9O]{5,})",        # ACCT NO: 34007802837
         r"a/c\s*no\s*[:\-]?\s*([0-9O]{5,})",         # A/C NO: 34007802837
@@ -103,7 +103,6 @@ def route_file(src_path):
 
     text = extract_text(src_path)
     name, account = parse_fields(text)
-    print(f"[DEBUG] Parsed fields for {src_path}: name='{name}', account='{account}'")
 
     is_image = ext in [".png", ".jpg", ".jpeg"]
 
@@ -131,19 +130,20 @@ def route_file(src_path):
         # Just move the file as-is
         shutil.move(src_path, dest_path)
         print(f"[{dest_dir.upper()}] {filename} → {new_filename}")
-        return
+        return dest_path
 
     if is_image:
         # Convert image to PDF and save as new file, then remove original
         if not os.path.exists(src_path):
             print(f"[SKIP] Source image missing before conversion: {src_path}")
-            return
+            return None
         try:
             img = Image.open(src_path).convert("RGB")
             img.save(dest_path, "PDF", resolution=100.0)
             if os.path.exists(src_path):
                 os.remove(src_path)
             print(f"[{dest_dir.upper()}] {filename} → {new_filename} (converted to PDF)")
+            return dest_path
         except Exception as e:
             print(f"[ERROR] Failed to convert {filename} to PDF: {e}")
             # If conversion fails, move to failed as original (if it still exists)
@@ -151,11 +151,14 @@ def route_file(src_path):
                 fail_path = os.path.join(FAILED_DIR, filename)
                 shutil.move(src_path, fail_path)
                 print(f"[FAILED] {filename} → {filename}")
+                return fail_path
             else:
                 print(f"[SKIP] Source image missing after failed conversion: {src_path}")
+                return None
     else:
         shutil.move(src_path, dest_path)
         print(f"[{dest_dir.upper()}] {filename} → {new_filename}")
+        return dest_path
 
 # === Watcher ===
 

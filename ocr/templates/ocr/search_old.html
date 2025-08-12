@@ -1,0 +1,27 @@
+{% extends 'ocr/base.html' %}
+
+{% block title %}Search Files{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <h2>Search Processed Files</h2>
+
+    <form method="get" action="{% url 'search' %}" class="search-form">
+      <input type="text" name="q" placeholder="Enter filename or content…" value="{{ query|default:'' }}">
+      <button type="submit">Search</button>
+    </form>
+
+    <div class="results">
+      {% if results %}
+        <p>Found {{ results|length }} file{{ results|length|pluralize }}:</p>
+        <ul>
+          {% for f in results %}
+            <li><a href="{{ f.path }}" target="_blank">{{ f.name }}</a></li>
+          {% endfor %}
+        </ul>
+      {% elif query %}
+        <p>No results for “{{ query }}.”</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
