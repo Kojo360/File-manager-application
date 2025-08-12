@@ -121,6 +121,9 @@ def upload_file(request):
 
                 processed_count = 0
                 failed_count = 0
+                fully_indexed_count = 0
+                partially_indexed_count = 0
+                ocr_failed_count = 0
 
                 for uploaded_file in uploaded_files:
                     try:
@@ -139,22 +142,38 @@ def upload_file(request):
                         )
 
                         # Process with OCR if available
-                        ocr_status = 'no_ocr'
+                        final_status = 'failed'  # Default if something goes wrong
                         if WATCHER_AVAILABLE:
                             try:
                                 processed_path = route_file(temp_path)
-                                ocr_status = 'processed_with_ocr'
+                                if processed_path:
+                                    # Determine status based on which directory the file ended up in
+                                    if 'fully_indexed' in processed_path:
+                                        final_status = 'fully_indexed'
+                                        fully_indexed_count += 1
+                                    elif 'partially_indexed' in processed_path:
+                                        final_status = 'partially_indexed'
+                                        partially_indexed_count += 1
+                                    else:
+                                        final_status = 'failed'
+                                        ocr_failed_count += 1
+                                else:
+                                    final_status = 'failed'
+                                    ocr_failed_count += 1
                             except Exception as ocr_error:
                                 # OCR failed, but file was uploaded
                                 print(f"OCR processing failed: {ocr_error}")
-                                ocr_status = 'uploaded_ocr_failed'
-                        
-                        status = ocr_status
+                                final_status = 'failed'
+                                ocr_failed_count += 1
+                        else:
+                            # No OCR available, consider as failed processing
+                            final_status = 'failed'
+                            ocr_failed_count += 1
 
-                        # Log final status
+                        # Log final processing status (this updates session statistics correctly)
                         log_file_processing(
                             original_filename=uploaded_file.name,
-                            status=status,
+                            status=final_status,
                             file_size=uploaded_file.size,
                             session_key=session_key
                         )
@@ -173,12 +192,23 @@ def upload_file(request):
 
                 # Show results with better messaging
                 if processed_count > 0:
-                    if 'ocr_failed' in str(status):
-                        messages.warning(request, f"Uploaded {processed_count} files successfully, but OCR processing is temporarily unavailable. Files are stored and can be processed later.")
-                    elif 'no_ocr' in str(status):
-                        messages.info(request, f"Uploaded {processed_count} files successfully. OCR processing is currently disabled.")
+                    message_parts = []
+                    if fully_indexed_count > 0:
+                        message_parts.append(f"{fully_indexed_count} fully indexed")
+                    if partially_indexed_count > 0:
+                        message_parts.append(f"{partially_indexed_count} partially indexed")
+                    if ocr_failed_count > 0:
+                        message_parts.append(f"{ocr_failed_count} OCR failed")
+                    
+                    if message_parts:
+                        message = f"Successfully processed {processed_count} files: " + ", ".join(message_parts) + "!"
+                        if fully_indexed_count > 0:
+                            messages.success(request, message)
+                        else:
+                            messages.warning(request, message)
                     else:
-                        messages.success(request, f"Successfully processed {processed_count} files with OCR!")
+                        messages.success(request, f"Successfully processed {processed_count} files!")
+                        
                 if failed_count > 0:
                     messages.error(request, f"Failed to upload {failed_count} files.")
 
