@@ -98,6 +98,15 @@ def upload_file(request):
 
 def search_files(request):
     query = request.GET.get('q', '').strip()
+    filter_type = request.GET.get('filter', '').strip()
+    
+    # Advanced filter parameters
+    min_size = request.GET.get('min_size', '').strip()
+    max_size = request.GET.get('max_size', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    has_name = request.GET.get('has_name', '').strip()
+    has_account = request.GET.get('has_account', '').strip()
     
     # Get the absolute paths to the three directories
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
@@ -109,6 +118,85 @@ def search_files(request):
     for directory in [FULLY_INDEXED_DIR, PARTIAL_INDEXED_DIR, FAILED_DIR]:
         os.makedirs(directory, exist_ok=True)
     
+    def should_include_file(filename, file_path, file_size, file_modified):
+        """Check if file should be included based on all filters"""
+        # Text search filter
+        if query and query.lower() not in filename.lower():
+            return False
+        
+        # File type filters
+        if filter_type == 'pdf' and not filename.lower().endswith('.pdf'):
+            return False
+        if filter_type == 'image' and not any(filename.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff']):
+            return False
+        
+        # File size filters
+        file_size_kb = file_size / 1024
+        if filter_type == 'large' and file_size_kb <= 1024:  # Less than 1MB
+            return False
+        if filter_type == 'small' and file_size_kb >= 100:  # More than 100KB
+            return False
+        
+        # Advanced size filters
+        if min_size and file_size_kb < float(min_size):
+            return False
+        if max_size and file_size_kb > float(max_size):
+            return False
+        
+        # Date filters
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+        
+        file_date = datetime.fromtimestamp(file_modified).date()
+        today = timezone.now().date()
+        
+        if filter_type == 'today' and file_date != today:
+            return False
+        if filter_type == 'week' and file_date < (today - timedelta(days=7)):
+            return False
+        if filter_type == 'month' and file_date < (today - timedelta(days=30)):
+            return False
+        
+        # Advanced date filters
+        if date_from:
+            try:
+                from_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+                if file_date < from_date:
+                    return False
+            except ValueError:
+                pass
+        
+        if date_to:
+            try:
+                to_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+                if file_date > to_date:
+                    return False
+            except ValueError:
+                pass
+        
+        # Name and account filters (check against database records)
+        if has_name or has_account:
+            try:
+                # Look for processing logs with this filename
+                log_entry = FileProcessingLog.objects.filter(
+                    Q(original_filename=filename) | Q(final_filename=filename)
+                ).first()
+                
+                if log_entry:
+                    if has_name and has_name.lower() not in (log_entry.extracted_name or '').lower():
+                        return False
+                    if has_account and has_account.lower() not in (log_entry.extracted_account or '').lower():
+                        return False
+                else:
+                    # If no log entry and name/account filters are applied, exclude
+                    if has_name or has_account:
+                        return False
+            except:
+                # If database query fails, skip name/account filtering
+                pass
+        
+        return True
+    
     def get_files_from_directory(directory_path, status):
         """Get all files from a directory and return them with their status"""
         files = []
@@ -116,22 +204,38 @@ def search_files(request):
             for filename in os.listdir(directory_path):
                 file_path = os.path.join(directory_path, filename)
                 if os.path.isfile(file_path):
-                    # Only include files that match the search query if provided
-                    if not query or query.lower() in filename.lower():
+                    file_size = os.path.getsize(file_path)
+                    file_modified = os.path.getmtime(file_path)
+                    
+                    # Apply all filters
+                    if should_include_file(filename, file_path, file_size, file_modified):
                         file_info = {
                             'name': filename,
                             'path': file_path,
                             'status': status,
-                            'size': os.path.getsize(file_path),
-                            'modified': os.path.getmtime(file_path)
+                            'size': file_size,
+                            'modified': file_modified
                         }
                         files.append(file_info)
         return files
     
-    # Get files from all directories
-    fully_indexed_files = get_files_from_directory(FULLY_INDEXED_DIR, 'fully_indexed')
-    partially_indexed_files = get_files_from_directory(PARTIAL_INDEXED_DIR, 'partially_indexed')
-    failed_files = get_files_from_directory(FAILED_DIR, 'failed')
+    # Get files from directories based on processing status filter
+    if filter_type == 'fully_indexed':
+        fully_indexed_files = get_files_from_directory(FULLY_INDEXED_DIR, 'fully_indexed')
+        partially_indexed_files = []
+        failed_files = []
+    elif filter_type == 'partially_indexed':
+        fully_indexed_files = []
+        partially_indexed_files = get_files_from_directory(PARTIAL_INDEXED_DIR, 'partially_indexed')
+        failed_files = []
+    elif filter_type == 'failed':
+        fully_indexed_files = []
+        partially_indexed_files = []
+        failed_files = get_files_from_directory(FAILED_DIR, 'failed')
+    else:  # All other filters or no processing status filter
+        fully_indexed_files = get_files_from_directory(FULLY_INDEXED_DIR, 'fully_indexed')
+        partially_indexed_files = get_files_from_directory(PARTIAL_INDEXED_DIR, 'partially_indexed')
+        failed_files = get_files_from_directory(FAILED_DIR, 'failed')
     
     # Sort files by modification time (newest first)
     for file_list in [fully_indexed_files, partially_indexed_files, failed_files]:
@@ -172,7 +276,10 @@ def search_files(request):
         'daily_stats': daily_stats,
         'total_size_formatted': get_file_size_formatted(total_size),
         'query': query,
-        'has_query': bool(query)
+        'has_query': bool(query),
+        'filter_type': filter_type,
+        'has_filter': bool(filter_type or min_size or max_size or date_from or date_to or has_name or has_account),
+        'has_advanced_filters': bool(min_size or max_size or date_from or date_to or has_name or has_account),
     })
 
 def serve_processed_file(request, file_path):

@@ -18,7 +18,7 @@
       <!-- Overall Statistics Cards -->
       <div class="row stats-cards mt-4">
         <div class="col-md-3">
-          <div class="card stat-card text-center">
+          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'search_files' %}?filter=all'">
             <div class="stat-icon text-info">
               <i class="fas fa-upload"></i>
             </div>
@@ -28,7 +28,7 @@
           </div>
         </div>
         <div class="col-md-3">
-          <div class="card stat-card text-center">
+          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'search_files' %}?filter=fully_indexed'">
             <div class="stat-icon text-success">
               <i class="fas fa-check-circle"></i>
             </div>
@@ -38,7 +38,7 @@
           </div>
         </div>
         <div class="col-md-3">
-          <div class="card stat-card text-center">
+          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'search_files' %}?filter=partially_indexed'">
             <div class="stat-icon text-warning">
               <i class="fas fa-exclamation-circle"></i>
             </div>
@@ -48,7 +48,7 @@
           </div>
         </div>
         <div class="col-md-3">
-          <div class="card stat-card text-center">
+          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'search_files' %}?filter=failed'">
             <div class="stat-icon text-danger">
               <i class="fas fa-times-circle"></i>
             </div>
@@ -297,4 +297,88 @@
     </div>
   </div>
 </div>
+
+<style>
+.clickable-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clickable-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  padding: 1.5rem;
+}
+
+.stat-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.metric-item, .breakdown-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.daily-stat-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.activity-timeline {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.activity-icon {
+  margin-right: 1rem;
+  font-size: 1.2rem;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.activity-details {
+  margin: 0.5rem 0;
+}
+
+.detail-item {
+  margin-right: 1rem;
+  font-size: 0.9rem;
+}
+
+.activity-time {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.activity-error {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+</style>
 {% endblock %}

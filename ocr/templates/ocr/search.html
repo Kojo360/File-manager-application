@@ -14,28 +14,177 @@
           <p class="text-muted">Browse and search all processed documents</p>
         </div>
         <div class="card-body">
-          <!-- Search Form -->
+          <!-- Enhanced Search Form with Filters -->
           <form method="get" action="{% url 'search_files' %}" class="search-form">
-            <div class="input-group mb-3">
-              <span class="input-group-text bg-transparent border-end-0">
-                <i class="fas fa-search text-muted"></i>
-              </span>
-              <input type="text" 
-                     name="q" 
-                     class="form-control border-start-0 ps-0" 
-                     placeholder="Search by filename..." 
-                     value="{{ query|default:'' }}"
-                     style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-search me-1"></i>Search
-              </button>
-              {% if has_query %}
-                <a href="{% url 'search_files' %}" class="btn btn-outline-secondary">
-                  <i class="fas fa-times me-1"></i>Clear
-                </a>
-              {% endif %}
+            <div class="row">
+              <!-- Search Input -->
+              <div class="col-md-8">
+                <div class="input-group mb-3">
+                  <span class="input-group-text bg-transparent border-end-0">
+                    <i class="fas fa-search text-muted"></i>
+                  </span>
+                  <input type="text" 
+                         name="q" 
+                         class="form-control border-start-0 border-end-0 ps-0" 
+                         placeholder="Search by filename, name, or account number..." 
+                         value="{{ query|default:'' }}"
+                         style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
+                </div>
+              </div>
+              
+              <!-- Filter Dropdown -->
+              <div class="col-md-4">
+                <div class="input-group mb-3">
+                  <span class="input-group-text bg-transparent border-end-0">
+                    <i class="fas fa-filter text-muted"></i>
+                  </span>
+                  <select name="filter" class="form-select border-start-0" style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
+                    <option value="">All Files</option>
+                    <optgroup label="Processing Status">
+                      <option value="fully_indexed" {% if filter_type == 'fully_indexed' %}selected{% endif %}>
+                        ✅ Fully Indexed
+                      </option>
+                      <option value="partially_indexed" {% if filter_type == 'partially_indexed' %}selected{% endif %}>
+                        ⚠️ Partially Indexed
+                      </option>
+                      <option value="failed" {% if filter_type == 'failed' %}selected{% endif %}>
+                        ❌ Failed Processing
+                      </option>
+                    </optgroup>
+                    <optgroup label="File Type">
+                      <option value="pdf" {% if filter_type == 'pdf' %}selected{% endif %}>
+                        📄 PDF Files
+                      </option>
+                      <option value="image" {% if filter_type == 'image' %}selected{% endif %}>
+                        🖼️ Image Files
+                      </option>
+                    </optgroup>
+                    <optgroup label="Date Range">
+                      <option value="today" {% if filter_type == 'today' %}selected{% endif %}>
+                        📅 Today
+                      </option>
+                      <option value="week" {% if filter_type == 'week' %}selected{% endif %}>
+                        📅 This Week
+                      </option>
+                      <option value="month" {% if filter_type == 'month' %}selected{% endif %}>
+                        📅 This Month
+                      </option>
+                    </optgroup>
+                    <optgroup label="File Size">
+                      <option value="large" {% if filter_type == 'large' %}selected{% endif %}>
+                        📊 Large Files (>1MB)
+                      </option>
+                      <option value="small" {% if filter_type == 'small' %}selected{% endif %}>
+                        📊 Small Files (<100KB)
+                      </option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Search Controls -->
+            <div class="row">
+              <div class="col-12">
+                <div class="d-flex gap-2 justify-content-center">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Search & Filter
+                  </button>
+                  {% if has_query or has_filter %}
+                    <a href="{% url 'search_files' %}" class="btn btn-outline-secondary">
+                      <i class="fas fa-times me-1"></i>Clear All
+                    </a>
+                  {% endif %}
+                  <button type="button" class="btn btn-outline-info" onclick="toggleAdvancedFilters()">
+                    <i class="fas fa-cog me-1"></i>Advanced
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Advanced Filters (Hidden by default) -->
+            <div id="advanced-filters" class="mt-3" style="display: none;">
+              <div class="card">
+                <div class="card-header bg-transparent">
+                  <h6 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Advanced Filters</h6>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <label class="form-label">Minimum File Size (KB)</label>
+                      <input type="number" name="min_size" class="form-control" placeholder="0" value="{{ request.GET.min_size }}">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Maximum File Size (KB)</label>
+                      <input type="number" name="max_size" class="form-control" placeholder="Unlimited" value="{{ request.GET.max_size }}">
+                    </div>
+                  </div>
+                  <div class="row mt-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Files Processed After</label>
+                      <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Files Processed Before</label>
+                      <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
+                    </div>
+                  </div>
+                  <div class="row mt-3">
+                    <div class="col-md-6">
+                      <label class="form-label">Contains Name</label>
+                      <input type="text" name="has_name" class="form-control" placeholder="Search extracted names" value="{{ request.GET.has_name }}">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Contains Account</label>
+                      <input type="text" name="has_account" class="form-control" placeholder="Search extracted accounts" value="{{ request.GET.has_account }}">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </form>
+          
+          <!-- Filter Indicator -->
+          {% if has_filter %}
+            <div class="alert alert-info mt-3" role="alert">
+              <i class="fas fa-filter me-2"></i>
+              <strong>Active Filter:</strong> 
+              {% if filter_type == 'fully_indexed' %}
+                Showing only <span class="badge bg-success">✅ Fully Indexed</span> files
+              {% elif filter_type == 'partially_indexed' %}
+                Showing only <span class="badge bg-warning">⚠️ Partially Indexed</span> files
+              {% elif filter_type == 'failed' %}
+                Showing only <span class="badge bg-danger">❌ Failed</span> files
+              {% elif filter_type == 'pdf' %}
+                Showing only <span class="badge bg-primary">📄 PDF</span> files
+              {% elif filter_type == 'image' %}
+                Showing only <span class="badge bg-info">🖼️ Image</span> files
+              {% elif filter_type == 'today' %}
+                Showing files from <span class="badge bg-secondary">📅 Today</span>
+              {% elif filter_type == 'week' %}
+                Showing files from <span class="badge bg-secondary">📅 This Week</span>
+              {% elif filter_type == 'month' %}
+                Showing files from <span class="badge bg-secondary">📅 This Month</span>
+              {% elif filter_type == 'large' %}
+                Showing only <span class="badge bg-dark">📊 Large Files</span> (>1MB)
+              {% elif filter_type == 'small' %}
+                Showing only <span class="badge bg-light text-dark">📊 Small Files</span> (<100KB)
+              {% elif filter_type == 'all' %}
+                Showing <span class="badge bg-info">All</span> files
+              {% endif %}
+              
+              {% if request.GET.min_size or request.GET.max_size or request.GET.date_from or request.GET.date_to or request.GET.has_name or request.GET.has_account %}
+                <span class="ms-2">
+                  <i class="fas fa-plus me-1"></i>
+                  <small>Advanced filters applied</small>
+                </span>
+              {% endif %}
+              
+              <a href="{% url 'search_files' %}" class="btn btn-sm btn-outline-info ms-2">
+                <i class="fas fa-times me-1"></i>Clear Filters
+              </a>
+            </div>
+          {% endif %}
         </div>
       </div>
 
@@ -339,6 +488,44 @@ function scrollToSection(sectionId) {
     });
   }
 }
+
+// Auto-scroll to relevant section when coming from statistics page with filter
+document.addEventListener('DOMContentLoaded', function() {
+  {% if has_filter %}
+    {% if filter_type == 'fully_indexed' %}
+      setTimeout(() => scrollToSection('fully-indexed-section'), 500);
+    {% elif filter_type == 'partially_indexed' %}
+      setTimeout(() => scrollToSection('partially-indexed-section'), 500);
+    {% elif filter_type == 'failed' %}
+      setTimeout(() => scrollToSection('failed-section'), 500);
+    {% endif %}
+  {% endif %}
+});
+
+function toggleAdvancedFilters() {
+  const advancedFilters = document.getElementById('advanced-filters');
+  const isVisible = advancedFilters.style.display !== 'none';
+  
+  if (isVisible) {
+    advancedFilters.style.display = 'none';
+  } else {
+    advancedFilters.style.display = 'block';
+    advancedFilters.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// Auto-submit form when filter dropdown changes
+document.addEventListener('DOMContentLoaded', function() {
+  const filterSelect = document.querySelector('select[name="filter"]');
+  if (filterSelect) {
+    filterSelect.addEventListener('change', function() {
+      // Only auto-submit if it's a basic filter, not when clearing
+      if (this.value !== '') {
+        this.form.submit();
+      }
+    });
+  }
+});
 </script>
 
 <style>
@@ -371,6 +558,55 @@ function scrollToSection(sectionId) {
 .file-item:hover {
   background: rgba(255, 255, 255, 0.05);
   transform: translateX(5px);
+}
+
+/* Enhanced filter styles */
+.form-select, .form-control {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: inherit !important;
+}
+
+.form-select:focus, .form-control:focus {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: #0d6efd !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+.form-select option {
+  background: #fff;
+  color: #000;
+}
+
+#advanced-filters {
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.btn-group-filter {
+  gap: 0.5rem;
+}
+
+.filter-badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.search-form .input-group-text {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: inherit;
 }
 </style>
 {% endblock %}
