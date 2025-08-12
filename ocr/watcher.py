@@ -34,7 +34,7 @@ import shutil
 
 def get_tesseract_path():
     """Auto-detect tesseract installation"""
-    # For Docker/Linux environments, try explicit paths first
+    # For Render/Linux environments with apt.txt, tesseract will be in /usr/bin
     linux_paths = [
         '/usr/bin/tesseract',
         '/usr/local/bin/tesseract'
@@ -42,11 +42,13 @@ def get_tesseract_path():
     
     for path in linux_paths:
         if os.path.exists(path):
+            logging.info(f"Found tesseract at: {path}")
             return path
     
-    # Then try system PATH
+    # Then try system PATH (works for both Linux and Windows)
     tesseract_path = shutil.which('tesseract')
     if tesseract_path:
+        logging.info(f"Found tesseract in PATH: {tesseract_path}")
         return tesseract_path
     
     # Common installation paths for different platforms
@@ -66,8 +68,9 @@ def get_tesseract_path():
 
 def get_poppler_path():
     """Auto-detect poppler installation"""
-    # For Docker/Linux, poppler utilities should be in PATH
+    # For Render/Linux with apt.txt, poppler utilities will be in PATH
     if shutil.which('pdftoppm'):
+        logging.info("Found poppler utilities in system PATH")
         return None  # Use system PATH
     
     # Windows fallback
