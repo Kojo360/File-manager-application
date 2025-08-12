@@ -27,6 +27,74 @@ def test_view(request):
     """Simple test view to check if Django is working"""
     return HttpResponse("<h1>Django is working! ✅</h1><p>File Manager App is running on Render</p>")
 
+def debug_ocr(request):
+    """Debug OCR installation and capabilities"""
+    import subprocess
+    import sys
+    
+    debug_info = []
+    
+    # Check Python environment
+    debug_info.append(f"Python version: {sys.version}")
+    debug_info.append(f"Python executable: {sys.executable}")
+    
+    # Check tesseract installation
+    try:
+        result = subprocess.run(['tesseract', '--version'], 
+                              capture_output=True, text=True, timeout=10)
+        debug_info.append(f"Tesseract version: {result.stdout.split()[1] if result.stdout else 'Unknown'}")
+        debug_info.append(f"Tesseract path: {subprocess.which('tesseract')}")
+    except Exception as e:
+        debug_info.append(f"Tesseract ERROR: {str(e)}")
+    
+    # Check pytesseract
+    try:
+        import pytesseract
+        debug_info.append(f"pytesseract version: {pytesseract.__version__}")
+        debug_info.append(f"pytesseract tesseract_cmd: {pytesseract.pytesseract.tesseract_cmd}")
+        
+        # Test OCR on a simple image
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+        
+        # Create a test image
+        img = Image.new('RGB', (200, 50), color='white')
+        draw = ImageDraw.Draw(img)
+        draw.text((10, 10), "Test OCR", fill='black')
+        
+        # Try OCR
+        text = pytesseract.image_to_string(img)
+        debug_info.append(f"OCR test result: '{text.strip()}'")
+        
+    except Exception as e:
+        debug_info.append(f"pytesseract ERROR: {str(e)}")
+    
+    # Check poppler (for PDF processing)
+    try:
+        from pdf2image import convert_from_path
+        debug_info.append("pdf2image import: SUCCESS")
+        
+        # Check poppler utilities
+        for util in ['pdftoppm', 'pdfinfo']:
+            path = subprocess.which(util)
+            debug_info.append(f"{util} path: {path if path else 'NOT FOUND'}")
+            
+    except Exception as e:
+        debug_info.append(f"pdf2image ERROR: {str(e)}")
+    
+    # Check watcher availability
+    debug_info.append(f"Watcher available: {WATCHER_AVAILABLE}")
+    
+    # Environment variables
+    import os
+    debug_info.append(f"PATH: {os.environ.get('PATH', 'Not set')}")
+    
+    html = "<h1>OCR Debug Information</h1>\n"
+    html += "<pre>\n" + "\n".join(debug_info) + "\n</pre>\n"
+    html += "<p><a href='/'>Back to upload</a></p>"
+    
+    return HttpResponse(html)
+
 
 def upload_file(request):
     """Main upload view with full OCR functionality"""

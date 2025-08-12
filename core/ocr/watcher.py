@@ -22,24 +22,65 @@ for d in (FULLY_INDEXED_DIR, PARTIAL_INDEXED_DIR, FAILED_DIR):
     os.makedirs(d, exist_ok=True)
 
 # === OCR Tools ===
-# Production-friendly OCR configuration
+# Auto-detect tesseract and poppler installations
+import subprocess
 import platform
 
-if platform.system() == "Windows":
-    POPPLER_PATH  = r"C:\poppler-24.08.0\Library\bin"  # adjust as needed
-    TESSERACT_CMD = r"C:\Users\KC-User\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
-else:
-    # Linux/Production environment
-    POPPLER_PATH = None  # poppler-utils provides system-wide access
-    TESSERACT_CMD = "tesseract"  # System-installed tesseract
+def get_tesseract_path():
+    """Auto-detect tesseract installation"""
+    # First, try the system PATH
+    tesseract_path = subprocess.which('tesseract')
+    if tesseract_path:
+        return tesseract_path
+    
+    # Platform-specific fallbacks
+    if platform.system() == "Windows":
+        common_paths = [
+            r"C:\Users\KC-User\AppData\Local\Programs\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        ]
+    else:
+        common_paths = [
+            '/usr/bin/tesseract',  # Linux (Docker)
+            '/usr/local/bin/tesseract',  # Linux alternative
+        ]
+    
+    for path in common_paths:
+        if os.path.exists(path):
+            return path
+    
+    # If nothing found, return default command and let system handle it
+    return 'tesseract'
 
-# Only set tesseract path if it's a specific executable
+def get_poppler_path():
+    """Auto-detect poppler installation"""
+    # For Docker/Linux, poppler utilities should be in PATH
+    if subprocess.which('pdftoppm'):
+        return None  # Use system PATH
+    
+    # Windows fallback
+    if platform.system() == "Windows":
+        windows_poppler = r"C:\poppler-24.08.0\Library\bin"
+        if os.path.exists(windows_poppler):
+            return windows_poppler
+    
+    return None  # Use system PATH
+
+# Configure paths
+TESSERACT_CMD = get_tesseract_path()
+POPPLER_PATH = get_poppler_path()
+
+# Set pytesseract command
 if TESSERACT_CMD != "tesseract":
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+
+print(f"[OCR CONFIG] Tesseract: {TESSERACT_CMD}")
+print(f"[OCR CONFIG] Poppler: {POPPLER_PATH or 'System PATH'}")
 
 # === Helpers ===
 
 def extract_text(path):
+    """Extract text from PDF or image files using OCR"""
     ext = os.path.splitext(path)[1].lower()
     try:
         if ext == ".pdf":
@@ -49,8 +90,8 @@ def extract_text(path):
                 else:
                     pages = convert_from_path(path)  # Use system poppler
             except Exception as e:
-                print(f"[ERROR] PDF conversion failed: {e}")
-                return ""
+                print(f"[ERROR] PDF conversion failed for {path}: {e}")
+                raise  # Re-raise to let caller handle the error
             text = "".join(pytesseract.image_to_string(p) for p in pages)
         else:
             img = Image.open(path).convert("RGB")
@@ -58,8 +99,7 @@ def extract_text(path):
         return text
     except Exception as e:
         print(f"[ERROR] OCR extraction failed for {path}: {e}")
-        # Return empty text if OCR fails
-        return ""
+        raise  # Re-raise to let caller handle the error
 
 def parse_fields(text):
     # Extract individual name components from various possible fields
