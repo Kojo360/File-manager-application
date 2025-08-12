@@ -22,11 +22,11 @@ from django.conf.urls.static import static
 
 from django.contrib import admin
 from django.urls import path, include
-from django.http import JsonResponse
+from django.http import HttpResponse
 
 def health_check(request):
-    """Health check endpoint for Railway"""
-    return JsonResponse({"status": "healthy", "message": "Django app is running"})
+    """Simple health check endpoint for Railway - just return 200 OK"""
+    return HttpResponse("OK", status=200)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
