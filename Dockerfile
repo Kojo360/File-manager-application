@@ -21,9 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Copy and make startup script executable
-COPY start.sh .
-RUN chmod +x start.sh
+# Copy and make startup scripts executable
+COPY start.py .
+RUN chmod +x start.py
 
 # Collect static files (build time)
 RUN python manage.py collectstatic --noinput
@@ -31,5 +31,5 @@ RUN python manage.py collectstatic --noinput
 # Expose port (Railway sets PORT at runtime)
 EXPOSE 8000
 
-# Use startup script
-CMD ["./start.sh"]
+# Use Python startup script
+CMD ["python", "start.py"]
