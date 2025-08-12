@@ -41,20 +41,25 @@ if TESSERACT_CMD != "tesseract":
 
 def extract_text(path):
     ext = os.path.splitext(path)[1].lower()
-    if ext == ".pdf":
-        try:
-            if POPPLER_PATH:
-                pages = convert_from_path(path, poppler_path=POPPLER_PATH)
-            else:
-                pages = convert_from_path(path)  # Use system poppler
-        except Exception as e:
-            print(f"[ERROR] PDF conversion failed: {e}")
-            return ""
-        text = "".join(pytesseract.image_to_string(p) for p in pages)
-    else:
-        img = Image.open(path).convert("RGB")
-        text = pytesseract.image_to_string(img)
-    return text
+    try:
+        if ext == ".pdf":
+            try:
+                if POPPLER_PATH:
+                    pages = convert_from_path(path, poppler_path=POPPLER_PATH)
+                else:
+                    pages = convert_from_path(path)  # Use system poppler
+            except Exception as e:
+                print(f"[ERROR] PDF conversion failed: {e}")
+                return ""
+            text = "".join(pytesseract.image_to_string(p) for p in pages)
+        else:
+            img = Image.open(path).convert("RGB")
+            text = pytesseract.image_to_string(img)
+        return text
+    except Exception as e:
+        print(f"[ERROR] OCR extraction failed for {path}: {e}")
+        # Return empty text if OCR fails
+        return ""
 
 def parse_fields(text):
     # Extract individual name components from various possible fields

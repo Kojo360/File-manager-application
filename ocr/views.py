@@ -65,8 +65,13 @@ def upload_file(request):
 
                         # Process with OCR if available
                         if WATCHER_AVAILABLE:
-                            processed_path = route_file(temp_path)
-                            status = 'processed'
+                            try:
+                                processed_path = route_file(temp_path)
+                                status = 'processed'
+                            except Exception as ocr_error:
+                                # OCR failed, but file was uploaded
+                                print(f"OCR processing failed: {ocr_error}")
+                                status = 'uploaded_no_ocr'
                         else:
                             status = 'uploaded'
 
