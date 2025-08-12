@@ -4,7 +4,7 @@ from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse
 from django.utils.encoding import smart_str
 from .forms import FileUploadForm
-from .utils import log_file_processing, get_processing_statistics, get_file_size_formatted
+from .utils import log_file_processing, get_processing_statistics, get_file_size_formatted, get_session_statistics, reset_session_statistics
 import sys
 import os
 
@@ -31,6 +31,11 @@ def test_view(request):
 def upload_file(request):
     """Main upload view with full OCR functionality"""
     try:
+        # Ensure session exists
+        if not request.session.session_key:
+            request.session.create()
+        session_key = request.session.session_key
+        
         if request.method == 'POST':
             form = FileUploadForm(request.POST, request.FILES)
             if form.is_valid():
@@ -60,7 +65,8 @@ def upload_file(request):
                         log_file_processing(
                             original_filename=uploaded_file.name,
                             status='uploaded',
-                            file_size=uploaded_file.size
+                            file_size=uploaded_file.size,
+                            session_key=session_key
                         )
 
                         # Process with OCR if available
@@ -79,7 +85,8 @@ def upload_file(request):
                         log_file_processing(
                             original_filename=uploaded_file.name,
                             status=status,
-                            file_size=uploaded_file.size
+                            file_size=uploaded_file.size,
+                            session_key=session_key
                         )
 
                         processed_count += 1
@@ -89,7 +96,8 @@ def upload_file(request):
                             original_filename=uploaded_file.name,
                             status='failed',
                             error_message=str(e),
-                            file_size=uploaded_file.size if hasattr(uploaded_file, 'size') else 0
+                            file_size=uploaded_file.size if hasattr(uploaded_file, 'size') else 0,
+                            session_key=session_key
                         )
                         failed_count += 1
 
@@ -104,9 +112,9 @@ def upload_file(request):
         else:
             form = FileUploadForm()
 
-        # Get statistics
+        # Get session-specific statistics
         try:
-            statistics = get_processing_statistics()
+            statistics = get_session_statistics(session_key)
         except Exception as e:
             statistics = {
                 'total_files': 0,
@@ -115,7 +123,9 @@ def upload_file(request):
                 'failed': 0,
                 'total_size': 0,
                 'average_size': 0,
-                'last_upload': None
+                'last_upload': None,
+                'first_upload': None,
+                'success_rate': 0
             }
 
         return render(request, 'ocr/upload.html', {
@@ -342,8 +352,35 @@ def serve_processed_file(request, file_path):
     
     raise Http404("File not found")
 
+def reset_statistics(request):
+    """Reset session statistics"""
+    try:
+        if not request.session.session_key:
+            request.session.create()
+        session_key = request.session.session_key
+        
+        if reset_session_statistics(session_key):
+            messages.success(request, "Statistics have been reset successfully!")
+        else:
+            messages.error(request, "Failed to reset statistics.")
+            
+    except Exception as e:
+        messages.error(request, f"Error resetting statistics: {str(e)}")
+    
+    return redirect('upload_file')
+
+
 def statistics_view(request):
-    """Detailed statistics view"""
+    """Detailed statistics view with session-based stats"""
+    # Ensure session exists
+    if not request.session.session_key:
+        request.session.create()
+    session_key = request.session.session_key
+    
+    # Get session statistics
+    session_stats = get_session_statistics(session_key)
+    
+    # Get global statistics for comparison
     processing_stats = get_processing_statistics()
     
     # Get daily statistics for the last 30 days
@@ -354,25 +391,16 @@ def statistics_view(request):
         date__gte=thirty_days_ago
     ).order_by('-date')
     
-    # Get recent activity
-    recent_activity = FileProcessingLog.objects.order_by('-processed_at')[:50]
-    
-    # Calculate success rates
-    if processing_stats['overall'].get('total_processed', 0) > 0:
-        success_rate = round(
-            ((processing_stats['overall'].get('total_fully_indexed', 0) + 
-              processing_stats['overall'].get('total_partially_indexed', 0)) / 
-             processing_stats['overall'].get('total_processed', 1)) * 100, 1
-        )
-    else:
-        success_rate = 0
+    # Get recent activity for this session
+    recent_activity = session_stats.get('recent_activity', [])
     
     return render(request, 'ocr/statistics.html', {
+        'session_stats': session_stats,
         'processing_stats': processing_stats,
         'daily_stats': daily_stats,
         'recent_activity': recent_activity,
-        'success_rate': success_rate,
-        'total_size_formatted': get_file_size_formatted(
+        'session_total_size_formatted': get_file_size_formatted(session_stats.get('total_size', 0)),
+        'global_total_size_formatted': get_file_size_formatted(
             processing_stats['overall'].get('total_size', 0) or 0
         )
     })

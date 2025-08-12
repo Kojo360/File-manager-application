@@ -3,15 +3,15 @@ Utility functions for tracking file processing statistics
 """
 from django.utils import timezone
 from django.db.models import F, Count, Sum, Q
-from .models import FileProcessingLog, ProcessingStatistics
+from .models import FileProcessingLog, ProcessingStatistics, SessionStatistics
 import os
 
 
 def log_file_processing(original_filename, status, final_filename=None, file_size=0, 
                        extracted_name=None, extracted_account=None, file_path=None, 
-                       error_message=None):
+                       error_message=None, session_key=None):
     """
-    Log file processing activity
+    Log file processing activity with session tracking
     """
     try:
         # Create processing log entry
@@ -39,7 +39,40 @@ def log_file_processing(original_filename, status, final_filename=None, file_siz
             }
         )
         
-        # Update counters based on status
+        # Update session statistics if session_key provided
+        if session_key:
+            session_stats, created = SessionStatistics.objects.get_or_create(
+                session_key=session_key,
+                defaults={
+                    'total_uploaded': 0,
+                    'fully_indexed': 0,
+                    'partially_indexed': 0,
+                    'failed': 0,
+                    'total_file_size': 0,
+                    'first_upload': timezone.now(),
+                    'last_upload': timezone.now()
+                }
+            )
+            
+            # Update session counters
+            now = timezone.now()
+            session_stats.last_upload = now
+            if session_stats.first_upload is None:
+                session_stats.first_upload = now
+                
+            if status == 'uploaded':
+                session_stats.total_uploaded = F('total_uploaded') + 1
+                session_stats.total_file_size = F('total_file_size') + file_size
+            elif status == 'fully_indexed':
+                session_stats.fully_indexed = F('fully_indexed') + 1
+            elif status == 'partially_indexed':
+                session_stats.partially_indexed = F('partially_indexed') + 1
+            elif status == 'failed':
+                session_stats.failed = F('failed') + 1
+                
+            session_stats.save()
+        
+        # Update daily counters
         if status == 'uploaded':
             stats.total_uploaded = F('total_uploaded') + 1
             stats.total_file_size = F('total_file_size') + file_size
@@ -56,9 +89,73 @@ def log_file_processing(original_filename, status, final_filename=None, file_siz
         print(f"Error logging file processing: {e}")
 
 
+def get_session_statistics(session_key):
+    """
+    Get session-specific statistics
+    """
+    try:
+        session_stats, created = SessionStatistics.objects.get_or_create(
+            session_key=session_key,
+            defaults={
+                'total_uploaded': 0,
+                'fully_indexed': 0,
+                'partially_indexed': 0,
+                'failed': 0,
+                'total_file_size': 0
+            }
+        )
+        
+        # Get recent activity for this session
+        recent_activity = FileProcessingLog.objects.filter(
+            processed_at__gte=session_stats.created_at
+        ).order_by('-processed_at')[:10]
+        
+        return {
+            'session': session_stats,
+            'recent_activity': recent_activity,
+            'total_files': session_stats.total_uploaded,
+            'fully_indexed': session_stats.fully_indexed,
+            'partially_indexed': session_stats.partially_indexed,
+            'failed': session_stats.failed,
+            'total_size': session_stats.total_file_size,
+            'average_size': session_stats.total_file_size / max(session_stats.total_uploaded, 1),
+            'last_upload': session_stats.last_upload,
+            'first_upload': session_stats.first_upload,
+            'success_rate': session_stats.success_rate
+        }
+        
+    except Exception as e:
+        print(f"Error getting session statistics: {e}")
+        return {
+            'session': None,
+            'recent_activity': [],
+            'total_files': 0,
+            'fully_indexed': 0,
+            'partially_indexed': 0,
+            'failed': 0,
+            'total_size': 0,
+            'average_size': 0,
+            'last_upload': None,
+            'first_upload': None,
+            'success_rate': 0
+        }
+
+
+def reset_session_statistics(session_key):
+    """
+    Reset statistics for a specific session
+    """
+    try:
+        SessionStatistics.objects.filter(session_key=session_key).delete()
+        return True
+    except Exception as e:
+        print(f"Error resetting session statistics: {e}")
+        return False
+
+
 def get_processing_statistics():
     """
-    Get comprehensive processing statistics
+    Get comprehensive processing statistics (legacy function for compatibility)
     """
     try:
         # Get overall statistics

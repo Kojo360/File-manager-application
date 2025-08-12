@@ -67,3 +67,29 @@ class ProcessingStatistics(models.Model):
         if self.total_uploaded == 0:
             return 0
         return round(((self.fully_indexed + self.partially_indexed) / self.total_uploaded) * 100, 1)
+
+
+class SessionStatistics(models.Model):
+    """Session-based statistics that reset for each new device/session"""
+    session_key = models.CharField(max_length=40, unique=True)  # Django session key
+    total_uploaded = models.IntegerField(default=0)
+    fully_indexed = models.IntegerField(default=0)
+    partially_indexed = models.IntegerField(default=0)
+    failed = models.IntegerField(default=0)
+    total_file_size = models.BigIntegerField(default=0)
+    first_upload = models.DateTimeField(null=True, blank=True)
+    last_upload = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-last_upload']
+        
+    def __str__(self):
+        return f"Session stats for {self.session_key[:8]}..."
+    
+    @property
+    def success_rate(self):
+        """Calculate success rate percentage"""
+        if self.total_uploaded == 0:
+            return 0
+        return round(((self.fully_indexed + self.partially_indexed) / self.total_uploaded) * 100, 1)

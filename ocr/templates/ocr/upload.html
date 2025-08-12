@@ -96,6 +96,85 @@
         </div>
       </div>
 
+      <!-- Session Statistics Dashboard -->
+      <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Your Session Statistics</h5>
+          <a href="{% url 'reset_statistics' %}" class="btn btn-outline-danger btn-sm" 
+             onclick="return confirm('Are you sure you want to reset your session statistics?')">
+            <i class="fas fa-redo me-1"></i>Reset Stats
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <div class="stat-item text-center">
+                <div class="stat-number text-primary">{{ statistics.total_files|default:0 }}</div>
+                <div class="stat-label">Total Files</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-item text-center">
+                <div class="stat-number text-success">{{ statistics.fully_indexed|default:0 }}</div>
+                <div class="stat-label">Fully Indexed</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-item text-center">
+                <div class="stat-number text-warning">{{ statistics.partially_indexed|default:0 }}</div>
+                <div class="stat-label">Partially Indexed</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stat-item text-center">
+                <div class="stat-number text-danger">{{ statistics.failed|default:0 }}</div>
+                <div class="stat-label">Failed</div>
+              </div>
+            </div>
+          </div>
+          
+          {% if statistics.first_upload or statistics.last_upload %}
+          <hr>
+          <div class="row">
+            <div class="col-md-6">
+              <small class="text-muted">
+                <i class="fas fa-clock me-1"></i>
+                <strong>First Upload:</strong> 
+                {% if statistics.first_upload %}
+                  {{ statistics.first_upload|date:"M j, Y g:i A" }}
+                {% else %}
+                  No uploads yet
+                {% endif %}
+              </small>
+            </div>
+            <div class="col-md-6">
+              <small class="text-muted">
+                <i class="fas fa-clock me-1"></i>
+                <strong>Last Upload:</strong> 
+                {% if statistics.last_upload %}
+                  {{ statistics.last_upload|date:"M j, Y g:i A" }}
+                {% else %}
+                  No uploads yet
+                {% endif %}
+              </small>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if statistics.success_rate > 0 %}
+          <div class="mt-3">
+            <div class="d-flex justify-content-between">
+              <small>Success Rate</small>
+              <small>{{ statistics.success_rate }}%</small>
+            </div>
+            <div class="progress" style="height: 6px;">
+              <div class="progress-bar bg-success" style="width: {{ statistics.success_rate }}%"></div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
       <!-- Quick Actions -->
       <div class="row mt-4">
         <div class="col-md-6">
