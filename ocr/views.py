@@ -7,8 +7,18 @@ from .forms import FileUploadForm
 from .utils import log_file_processing, get_processing_statistics, get_file_size_formatted
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../core/ocr')))
-from watcher import route_file
+
+# Optional import for watcher functionality
+try:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../core/ocr')))
+    from watcher import route_file
+    WATCHER_AVAILABLE = True
+except ImportError:
+    WATCHER_AVAILABLE = False
+    def route_file(file_path):
+        # Fallback function when watcher is not available
+        return file_path
+
 from .models import ScannedFile, FileProcessingLog, ProcessingStatistics
 from django.db.models import Q
 import os

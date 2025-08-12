@@ -22,9 +22,20 @@ for d in (FULLY_INDEXED_DIR, PARTIAL_INDEXED_DIR, FAILED_DIR):
     os.makedirs(d, exist_ok=True)
 
 # === OCR Tools ===
-POPPLER_PATH  = r"C:\poppler-24.08.0\Library\bin"  # adjust as needed
-TESSERACT_CMD = r"C:\Users\KC-User\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"               # adjust as needed
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+# Production-friendly OCR configuration
+import platform
+
+if platform.system() == "Windows":
+    POPPLER_PATH  = r"C:\poppler-24.08.0\Library\bin"  # adjust as needed
+    TESSERACT_CMD = r"C:\Users\KC-User\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+else:
+    # Linux/Production environment
+    POPPLER_PATH = None  # poppler-utils provides system-wide access
+    TESSERACT_CMD = "tesseract"  # System-installed tesseract
+
+# Only set tesseract path if it's a specific executable
+if TESSERACT_CMD != "tesseract":
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 # === Helpers ===
 
@@ -32,7 +43,10 @@ def extract_text(path):
     ext = os.path.splitext(path)[1].lower()
     if ext == ".pdf":
         try:
-            pages = convert_from_path(path, poppler_path=POPPLER_PATH)
+            if POPPLER_PATH:
+                pages = convert_from_path(path, poppler_path=POPPLER_PATH)
+            else:
+                pages = convert_from_path(path)  # Use system poppler
         except Exception as e:
             print(f"[ERROR] PDF conversion failed: {e}")
             return ""

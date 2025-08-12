@@ -4,6 +4,10 @@ set -o errexit
 
 echo "🚀 Starting build process..."
 
+echo "📦 Installing system dependencies for OCR..."
+apt-get update
+apt-get install -y tesseract-ocr poppler-utils
+
 echo "📦 Installing Python dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
