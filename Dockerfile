@@ -21,10 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
-# Collect static files and run migrations
+# Collect static files (build time)
 RUN python manage.py collectstatic --noinput
-RUN python manage.py migrate --noinput
 
-# Expose port and run Gunicorn with proper PORT binding
-ENV PORT=8000
-CMD python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+# Expose port (Railway sets PORT at runtime)
+EXPOSE 8000
+
+# Start script that runs migrations then starts server
+CMD python manage.py migrate --noinput && gunicorn backend.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2
