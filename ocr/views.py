@@ -70,16 +70,17 @@ def upload_file(request):
                         )
 
                         # Process with OCR if available
+                        ocr_status = 'no_ocr'
                         if WATCHER_AVAILABLE:
                             try:
                                 processed_path = route_file(temp_path)
-                                status = 'processed'
+                                ocr_status = 'processed_with_ocr'
                             except Exception as ocr_error:
                                 # OCR failed, but file was uploaded
                                 print(f"OCR processing failed: {ocr_error}")
-                                status = 'uploaded_no_ocr'
-                        else:
-                            status = 'uploaded'
+                                ocr_status = 'uploaded_ocr_failed'
+                        
+                        status = ocr_status
 
                         # Log final status
                         log_file_processing(
@@ -101,11 +102,16 @@ def upload_file(request):
                         )
                         failed_count += 1
 
-                # Show results
+                # Show results with better messaging
                 if processed_count > 0:
-                    messages.success(request, f"Successfully processed {processed_count} files!")
+                    if 'ocr_failed' in str(status):
+                        messages.warning(request, f"Uploaded {processed_count} files successfully, but OCR processing is temporarily unavailable. Files are stored and can be processed later.")
+                    elif 'no_ocr' in str(status):
+                        messages.info(request, f"Uploaded {processed_count} files successfully. OCR processing is currently disabled.")
+                    else:
+                        messages.success(request, f"Successfully processed {processed_count} files with OCR!")
                 if failed_count > 0:
-                    messages.warning(request, f"Failed to process {failed_count} files.")
+                    messages.error(request, f"Failed to upload {failed_count} files.")
 
                 return redirect('upload_file')
                 

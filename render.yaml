@@ -2,19 +2,42 @@ services:
   - type: web
     name: file-manager-app
     env: python
-    buildCommand: "./build.sh"
+    plan: free
+    region: oregon
+    buildCommand: |
+      echo "🚀 Starting enhanced build process..."
+      
+      # Install system dependencies with proper error handling
+      echo "📦 Updating package manager..."
+      apt-get update || echo "Package update failed, continuing..."
+      
+      echo "📦 Installing OCR system dependencies..."
+      apt-get install -y tesseract-ocr tesseract-ocr-eng poppler-utils || echo "System packages failed, trying alternatives..."
+      
+      # Verify installations
+      echo "🔍 Verifying installations..."
+      tesseract --version || echo "⚠️ Tesseract not found"
+      pdftoppm -h >/dev/null 2>&1 && echo "✅ Poppler installed" || echo "⚠️ Poppler not found"
+      
+      # Python dependencies
+      echo "📦 Installing Python dependencies..."
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      
+      # Django setup
+      echo "📂 Collecting static files..."
+      python manage.py collectstatic --no-input --clear
+      
+      echo "🗄️ Running migrations..."
+      python manage.py migrate --noinput
+      
+      echo "✅ Build completed successfully!"
     startCommand: "gunicorn backend.wsgi:application"
+    autoDeploy: true
     envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: file-manager-db
-          property: connectionString
       - key: SECRET_KEY
         generateValue: true
+      - key: DEBUG
+        value: false
       - key: WEB_CONCURRENCY
-        value: 4
-
-databases:
-  - name: file-manager-db
-    databaseName: file_manager
-    user: file_manager_user
+        value: 2
