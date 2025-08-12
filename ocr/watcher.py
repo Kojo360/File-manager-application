@@ -87,26 +87,29 @@ POPPLER_PATH = get_poppler_path()
 # Set pytesseract command - ensure it's set properly
 if TESSERACT_CMD:
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
-    logging.info(f"Tesseract configured: {TESSERACT_CMD}")
+    logging.info(f"[Tesseract] Configured: {TESSERACT_CMD}")
 else:
     # Fallback to default command
     pytesseract.pytesseract.tesseract_cmd = 'tesseract'
-    logging.warning("Tesseract path not found, using default 'tesseract' command")
+    logging.warning("[Tesseract] Path not found, using default 'tesseract' command")
 
-logging.info(f"Tesseract path: {TESSERACT_CMD}")
-logging.info(f"Poppler path: {POPPLER_PATH or 'System PATH'}")
+logging.info(f"[Tesseract] Final command: {pytesseract.pytesseract.tesseract_cmd}")
+logging.info(f"[Poppler] Path: {POPPLER_PATH or 'System PATH'}")
 
-# Verify tesseract is working
+# Verify tesseract is working - this is what we need to see in logs
 try:
     import subprocess
     result = subprocess.run([pytesseract.pytesseract.tesseract_cmd, '--version'], 
                           capture_output=True, text=True, timeout=5)
     if result.returncode == 0:
-        logging.info(f"Tesseract verification successful: {result.stdout.split()[1] if result.stdout else 'Unknown version'}")
+        version = result.stdout.split('\n')[0] if result.stdout else 'Unknown'
+        logging.info(f"[Tesseract] {version}")
     else:
-        logging.error(f"Tesseract verification failed: {result.stderr}")
+        logging.error(f"[Tesseract] Verification error: {result.stderr}")
+except FileNotFoundError as e:
+    logging.error(f"[Tesseract] Verification error: {e}")
 except Exception as e:
-    logging.error(f"Tesseract verification error: {e}")
+    logging.error(f"[Tesseract] Verification error: {e}")
 
 # === OCR and File Routing Logic ===
 def extract_text(path):
