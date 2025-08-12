@@ -4,49 +4,47 @@ import subprocess
 import sys
 
 def main():
-    # Get PORT from environment, default to 8000 (Railway usually provides this)
+    # Get PORT from environment, Railway typically uses ports like 8080, 3000, etc.
     port = os.environ.get('PORT', '8000')
     
     print(f"=== Railway Django Startup ===")
-    print(f"PORT environment variable: {repr(os.environ.get('PORT'))}")
+    print(f"All environment variables containing 'PORT':")
+    for key, value in os.environ.items():
+        if 'PORT' in key.upper():
+            print(f"  {key} = {value}")
+    
     print(f"Using port: {port}")
+    print(f"Current working directory: {os.getcwd()}")
     print(f"Python executable: {sys.executable}")
     
     try:
         # Run migrations
-        print("Running Django migrations...")
-        result = subprocess.run([sys.executable, 'manage.py', 'migrate', '--noinput'], 
-                              check=True, capture_output=True, text=True)
-        print("Migrations completed successfully")
+        print("=== Running Django migrations ===")
+        subprocess.run([sys.executable, 'manage.py', 'migrate', '--noinput'], 
+                      check=True)
+        print("✅ Migrations completed successfully")
         
-        # Start gunicorn with more verbose output
-        print(f"Starting gunicorn on 0.0.0.0:{port} with 2 workers")
-        cmd = [
-            'gunicorn', 
+        # Start gunicorn
+        print(f"=== Starting gunicorn on 0.0.0.0:{port} ===")
+        
+        # Use os.execvp to replace the current process
+        os.execvp('gunicorn', [
+            'gunicorn',
             'backend.wsgi:application',
             '--bind', f'0.0.0.0:{port}',
             '--workers', '2',
             '--timeout', '120',
-            '--access-logfile', '-',  # Log to stdout
-            '--error-logfile', '-',   # Log errors to stderr
-            '--log-level', 'info'
-        ]
-        
-        print(f"Gunicorn command: {' '.join(cmd)}")
-        
-        # Replace current process with gunicorn
-        os.execvp('gunicorn', cmd)
+            '--access-logfile', '-',
+            '--error-logfile', '-',
+            '--log-level', 'info',
+            '--preload'
+        ])
         
     except subprocess.CalledProcessError as e:
-        print(f"Error during startup: {e}")
-        print(f"Return code: {e.returncode}")
-        if e.stdout:
-            print(f"STDOUT: {e.stdout}")
-        if e.stderr:
-            print(f"STDERR: {e.stderr}")
+        print(f"❌ Error during startup: {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f"❌ Unexpected error: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':
