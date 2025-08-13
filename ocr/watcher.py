@@ -113,7 +113,9 @@ except Exception as e:
 
 # === OCR and File Routing Logic ===
 def extract_text(path):
-    """Extract text from PDF or image files using OCR"""
+    """
+    Extract text from PDF or image files using OCR with handwriting optimizations
+    """
     ext = os.path.splitext(path)[1].lower()
     try:
         if ext == ".pdf":
@@ -122,14 +124,133 @@ def extract_text(path):
                 pages = convert_from_path(path, poppler_path=POPPLER_PATH)
             else:
                 pages = convert_from_path(path)  # Use system PATH
-            return "".join(pytesseract.image_to_string(p) for p in pages)
+            
+            # Process each page with handwriting optimization
+            all_text = []
+            for page in pages:
+                page_text = extract_text_from_image_optimized(page)
+                if page_text.strip():
+                    all_text.append(page_text)
+            return "\n".join(all_text)
         else:
-            # Direct OCR on image files
+            # Direct OCR on image files with optimization
             img = Image.open(path).convert("RGB")
-            return pytesseract.image_to_string(img)
+            return extract_text_from_image_optimized(img)
     except Exception as e:
         logging.error(f"OCR extraction failed for {path}: {e}")
         raise  # Re-raise to let caller handle the error
+
+def extract_text_from_image_optimized(image):
+    """
+    Extract text from image with handwriting optimizations
+    Uses multiple OCR configurations and preprocessing for better handwritten text recognition
+    """
+    # Try multiple OCR configurations optimized for handwriting
+    configs = [
+        # LSTM engine with different PSM modes (better for handwriting)
+        '--oem 1 --psm 13',  # Raw line mode with LSTM (best for handwriting)
+        '--oem 1 --psm 7',   # Single text line with LSTM
+        '--oem 1 --psm 6',   # Single block with LSTM
+        
+        # Character-restricted configs for better accuracy
+        '--psm 13 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- ',
+        '--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ',
+        
+        # Default fallback
+        '',
+    ]
+    
+    # Try image preprocessing for handwriting
+    processed_images = []
+    
+    # Convert to grayscale
+    if image.mode != 'L':
+        gray = image.convert('L')
+    else:
+        gray = image.copy()
+    
+    # 1. Original image
+    processed_images.append(gray)
+    
+    # 2. Enhanced contrast (helps with faded handwriting)
+    from PIL import ImageEnhance
+    enhancer = ImageEnhance.Contrast(gray)
+    enhanced = enhancer.enhance(1.5)
+    processed_images.append(enhanced)
+    
+    # 3. Brightness adjustment
+    brightness_enhancer = ImageEnhance.Brightness(gray)
+    brightened = brightness_enhancer.enhance(1.2)
+    processed_images.append(brightened)
+    
+    # 4. Sharpened (helps with blurry handwriting)
+    from PIL import ImageFilter
+    sharpened = gray.filter(ImageFilter.SHARPEN)
+    processed_images.append(sharpened)
+    
+    best_text = ""
+    best_score = 0
+    
+    # Try each combination of preprocessing and OCR config
+    for img in processed_images:
+        for config in configs:
+            try:
+                text = pytesseract.image_to_string(img, config=config)
+                score = score_ocr_quality(text)
+                
+                if score > best_score:
+                    best_score = score
+                    best_text = text
+                    
+            except Exception as e:
+                logging.debug(f"OCR config failed: {config}, error: {e}")
+                continue
+    
+    # If no good result, try basic extraction
+    if best_score < 1:
+        try:
+            basic_text = pytesseract.image_to_string(image)
+            if basic_text.strip():
+                return basic_text
+        except:
+            pass
+    
+    return best_text
+
+def score_ocr_quality(text):
+    """
+    Score OCR result quality - higher score means better extraction
+    """
+    if not text or not text.strip():
+        return 0
+    
+    score = 0
+    text_lower = text.lower()
+    
+    # Length bonus (reasonable amount of text)
+    score += min(len(text.strip()) / 50, 2)
+    
+    # Keyword bonuses for expected fields
+    if any(keyword in text_lower for keyword in ['name', 'surname', 'first']):
+        score += 3
+    
+    if any(keyword in text_lower for keyword in ['account', 'number', 'csd']):
+        score += 3
+    
+    # Pattern bonuses
+    if re.search(r'[A-Za-z]{3,}', text):  # Contains words
+        score += 1
+    
+    if re.search(r'\d{3,}', text):  # Contains number sequences
+        score += 1
+    
+    # Penalty for excessive noise
+    if len(text) > 0:
+        noise_chars = sum(1 for c in text if not c.isalnum() and c not in ' \n\t.-:()[]')
+        noise_ratio = noise_chars / len(text)
+        score -= noise_ratio * 2
+    
+    return max(0, score)
 
 def parse_fields(text):
     """
