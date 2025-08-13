@@ -132,10 +132,108 @@ def extract_text(path):
         raise  # Re-raise to let caller handle the error
 
 def parse_fields(text):
-    m_name = re.search(r"name\s*:\s*([A-Za-z ]+)", text, re.IGNORECASE)
-    m_account = re.search(r"account\s*no\s*[:\-]?\s*([A-Za-z0-9\-]+)", text, re.IGNORECASE)
-    name = m_name.group(1).strip().replace(" ", "_") if m_name else None
-    account = m_account.group(1).strip() if m_account else None
+    """
+    Extract name and account fields from OCR text.
+    
+    IMPORTANT: When updating this function, ADD new regex patterns alongside existing ones.
+    Do NOT replace existing patterns - maintain backward compatibility.
+    
+    Current supported patterns:
+    - Structured names: Surname(individual), First name, Other name(s)
+    - Uppercase names: SURNAME, FIRST NAME, OTHER NAMES
+    - Corporate names: Name of Account Holder (corporate entities)
+    - Simple names: Name: (fallback)
+    - Account numbers: Account no, CSD number, ACCOUNT NUMBER, Banking information Account Number
+    """
+    # Extract individual name components - using line-by-line approach for better accuracy
+    lines = text.split('\n')
+    surname = None
+    first_name = None
+    other_names = None
+    account = None
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Extract surname (try all patterns, don't overwrite if already found)
+        if not surname and re.search(r"surname\s*\(individual\)", line, re.IGNORECASE):
+            match = re.search(r"surname\s*\(individual\)\s*[:\-]?\s*([A-Za-z\-\s]+?)(?:\s|$)", line, re.IGNORECASE)
+            if match:
+                surname = match.group(1).strip()
+        
+        # NEW: Extract uppercase SURNAME format
+        if not surname and re.search(r"^surname\s*[:\-]", line, re.IGNORECASE):
+            match = re.search(r"^surname\s*[:\-]?\s*([A-Za-z\-\s]+)", line, re.IGNORECASE)
+            if match:
+                surname = match.group(1).strip()
+        
+        # Extract first name (try all patterns, don't overwrite if already found)
+        if not first_name and re.search(r"first\s*name", line, re.IGNORECASE):
+            match = re.search(r"first\s*name\s*[:\-]?\s*([A-Za-z\-\s]+?)(?:\s|$)", line, re.IGNORECASE)
+            if match:
+                first_name = match.group(1).strip()
+        
+        # Extract other names (try all patterns, don't overwrite if already found)
+        if not other_names and re.search(r"other\s*name\(s\)", line, re.IGNORECASE):
+            match = re.search(r"other\s*name\(s\)\s*[:\-]?\s*([A-Za-z\-\s]+?)(?:\s|$)", line, re.IGNORECASE)
+            if match:
+                other_names = match.group(1).strip()
+        
+        # NEW: Extract OTHER NAMES format (without parentheses)
+        if not other_names and re.search(r"^other\s*names\s*[:\-]", line, re.IGNORECASE):
+            match = re.search(r"^other\s*names\s*[:\-]?\s*([A-Za-z\-\s]+)", line, re.IGNORECASE)
+            if match:
+                other_names = match.group(1).strip()
+        
+        # NEW: Extract corporate entity name (only if no individual names found)
+        if not surname and not first_name and re.search(r"name\s*of\s*account\s*holder\s*\(corporate\s*entities\)", line, re.IGNORECASE):
+            match = re.search(r"name\s*of\s*account\s*holder\s*\(corporate\s*entities\)\s*[:\-]?\s*([A-Za-z\-\s&.,]+)", line, re.IGNORECASE)
+            if match:
+                corporate_name = match.group(1).strip()
+                surname = corporate_name
+        
+        # Extract account numbers (try all patterns, don't overwrite if already found)
+        if not account and re.search(r"CSD\s*number", line, re.IGNORECASE):
+            match = re.search(r"CSD\s*number\s*[:\-]?\s*([A-Za-z0-9\-]+)", line, re.IGNORECASE)
+            if match:
+                account = match.group(1).strip()
+        
+        # Extract account number
+        if not account and re.search(r"account\s*no", line, re.IGNORECASE):
+            match = re.search(r"account\s*no\s*[:\-]?\s*([A-Za-z0-9\-]+)", line, re.IGNORECASE)
+            if match:
+                account = match.group(1).strip()
+        
+        # NEW: Extract ACCOUNT NUMBER format
+        if not account and re.search(r"^account\s*number\s*[:\-]", line, re.IGNORECASE):
+            match = re.search(r"^account\s*number\s*[:\-]?\s*([A-Za-z0-9\-]+)", line, re.IGNORECASE)
+            if match:
+                account = match.group(1).strip()
+        
+        # NEW: Extract banking information account number
+        if not account and (re.search(r"banking\s*information", line, re.IGNORECASE) or re.search(r"account\s*number", line, re.IGNORECASE)):
+            match = re.search(r"account\s*number\s*[:\-]?\s*([A-Za-z0-9\-]+)", line, re.IGNORECASE)
+            if match:
+                account = match.group(1).strip()
+    
+    # Combine name components
+    name_parts = []
+    if surname:
+        name_parts.append(surname)
+    if first_name:
+        name_parts.append(first_name)
+    if other_names:
+        name_parts.append(other_names)
+    
+    # If no structured names found, try fallback pattern
+    if not name_parts:
+        m_simple_name = re.search(r"name\s*:\s*([A-Za-z ]+)", text, re.IGNORECASE)
+        if m_simple_name:
+            name_parts.append(m_simple_name.group(1).strip())
+    
+    # Join name parts and clean up
+    name = "_".join(name_parts).replace(" ", "_") if name_parts else None
+    
     return name, account
 
 def route_file(src_path):
