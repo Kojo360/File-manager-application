@@ -10,8 +10,7 @@ import os
 
 # Optional import for watcher functionality
 try:
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../core/ocr')))
-    from watcher import route_file
+    from .watcher import route_file
     WATCHER_AVAILABLE = True
 except ImportError:
     WATCHER_AVAILABLE = False
@@ -25,7 +24,10 @@ import os
 
 def test_view(request):
     """Simple test view to check if Django is working"""
-    return HttpResponse("<h1>Django is working! ✅</h1><p>File Manager App is running on Render</p>")
+    print("=== TEST VIEW CALLED ===")
+    print(f"Method: {request.method}")
+    print(f"Path: {request.path}")
+    return HttpResponse("<h1>Django is working! ✅</h1><p>File Manager App is running on Render</p><p>Test view reached successfully!</p>")
 
 def debug_ocr(request):
     """Debug OCR installation and capabilities"""
@@ -99,6 +101,10 @@ def debug_ocr(request):
 
 def upload_file(request):
     """Main upload view with full OCR functionality"""
+    print(f"DEBUG: upload_file called with method: {request.method}")
+    print(f"DEBUG: CSRF token present: {'csrftoken' in request.COOKIES}")
+    print(f"DEBUG: POST data keys: {list(request.POST.keys()) if request.method == 'POST' else 'Not POST'}")
+    
     try:
         # Ensure session exists
         if not request.session.session_key:
@@ -106,29 +112,50 @@ def upload_file(request):
         session_key = request.session.session_key
         
         if request.method == 'POST':
+            print(f"DEBUG: POST request received")
+            print(f"DEBUG: FILES in request: {list(request.FILES.keys())}")
+            
             form = FileUploadForm(request.POST, request.FILES)
+            print(f"DEBUG: Form is valid: {form.is_valid()}")
+            
+            if not form.is_valid():
+                print(f"DEBUG: Form errors: {form.errors}")
+            
             if form.is_valid():
-                # Create a simple uploads directory in the container
-                uploads_dir = '/tmp/uploads'
-                os.makedirs(uploads_dir, exist_ok=True)
+                # Get the absolute paths to the directories (same as watcher.py)
+                BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+                INCOMING_SCAN_DIR = os.path.join(BASE_DIR, "incoming-scan")
+                
+                # Ensure incoming-scan directory exists
+                os.makedirs(INCOMING_SCAN_DIR, exist_ok=True)
 
                 uploaded_files = request.FILES.getlist('files')
+                
+                if len(uploaded_files) == 0:
+                    messages.error(request, "No files were selected for upload.")
+                    return redirect('ocr:upload_file')
                 
                 # Limit to 50 files for production
                 if len(uploaded_files) > 50:
                     messages.error(request, "You can upload a maximum of 50 files at once.")
-                    return redirect('upload_file')
+                    return redirect('ocr:upload_file')
 
                 processed_count = 0
                 failed_count = 0
-                fully_indexed_count = 0
-                partially_indexed_count = 0
-                ocr_failed_count = 0
+                upload_success_count = 0
 
                 for uploaded_file in uploaded_files:
                     try:
-                        # Save temporarily
-                        temp_path = os.path.join(uploads_dir, uploaded_file.name)
+                        # Save to incoming-scan directory for watcher to process
+                        temp_path = os.path.join(INCOMING_SCAN_DIR, uploaded_file.name)
+                        
+                        # Handle filename collisions
+                        base, ext = os.path.splitext(uploaded_file.name)
+                        counter = 1
+                        while os.path.exists(temp_path):
+                            temp_path = os.path.join(INCOMING_SCAN_DIR, f"{base}_{counter}{ext}")
+                            counter += 1
+                        
                         with open(temp_path, 'wb+') as dest:
                             for chunk in uploaded_file.chunks():
                                 dest.write(chunk)
@@ -140,47 +167,44 @@ def upload_file(request):
                             file_size=uploaded_file.size,
                             session_key=session_key
                         )
-
-                        # Process with OCR if available
-                        final_status = 'failed'  # Default if something goes wrong
+                        
+                        upload_success_count += 1
+                        processed_count += 1
+                        
+                        # Immediately process the file if watcher is available
                         if WATCHER_AVAILABLE:
                             try:
+                                from .watcher import route_file
                                 processed_path = route_file(temp_path)
                                 if processed_path:
-                                    # Determine status based on which directory the file ended up in
+                                    # Log successful processing
                                     if 'fully_indexed' in processed_path:
-                                        final_status = 'fully_indexed'
-                                        fully_indexed_count += 1
+                                        log_file_processing(
+                                            original_filename=uploaded_file.name,
+                                            status='fully_indexed',
+                                            file_size=uploaded_file.size,
+                                            session_key=session_key
+                                        )
                                     elif 'partially_indexed' in processed_path:
-                                        final_status = 'partially_indexed'
-                                        partially_indexed_count += 1
+                                        log_file_processing(
+                                            original_filename=uploaded_file.name,
+                                            status='partially_indexed',
+                                            file_size=uploaded_file.size,
+                                            session_key=session_key
+                                        )
                                     else:
-                                        final_status = 'failed'
-                                        ocr_failed_count += 1
-                                else:
-                                    final_status = 'failed'
-                                    ocr_failed_count += 1
-                            except Exception as ocr_error:
-                                # OCR failed, but file was uploaded
-                                print(f"OCR processing failed: {ocr_error}")
-                                final_status = 'failed'
-                                ocr_failed_count += 1
-                        else:
-                            # No OCR available, consider as failed processing
-                            final_status = 'failed'
-                            ocr_failed_count += 1
-
-                        # Log final processing status (this updates session statistics correctly)
-                        log_file_processing(
-                            original_filename=uploaded_file.name,
-                            status=final_status,
-                            file_size=uploaded_file.size,
-                            session_key=session_key
-                        )
-
-                        processed_count += 1
+                                        log_file_processing(
+                                            original_filename=uploaded_file.name,
+                                            status='failed',
+                                            file_size=uploaded_file.size,
+                                            session_key=session_key
+                                        )
+                            except Exception as process_error:
+                                # If processing fails, file will remain in incoming-scan for later processing
+                                pass
 
                     except Exception as e:
+                        # Handle any file that failed during upload
                         log_file_processing(
                             original_filename=uploaded_file.name,
                             status='failed',
@@ -190,29 +214,14 @@ def upload_file(request):
                         )
                         failed_count += 1
 
-                # Show results with better messaging
+                # Show results message
                 if processed_count > 0:
-                    message_parts = []
-                    if fully_indexed_count > 0:
-                        message_parts.append(f"{fully_indexed_count} fully indexed")
-                    if partially_indexed_count > 0:
-                        message_parts.append(f"{partially_indexed_count} partially indexed")
-                    if ocr_failed_count > 0:
-                        message_parts.append(f"{ocr_failed_count} OCR failed")
+                    messages.success(request, f"Successfully uploaded {upload_success_count} files to processing queue!")
                     
-                    if message_parts:
-                        message = f"Successfully processed {processed_count} files: " + ", ".join(message_parts) + "!"
-                        if fully_indexed_count > 0:
-                            messages.success(request, message)
-                        else:
-                            messages.warning(request, message)
-                    else:
-                        messages.success(request, f"Successfully processed {processed_count} files!")
-                        
                 if failed_count > 0:
                     messages.error(request, f"Failed to upload {failed_count} files.")
 
-                return redirect('upload_file')
+                return redirect('ocr:upload_file')
                 
         else:
             form = FileUploadForm()
@@ -243,9 +252,160 @@ def upload_file(request):
         return HttpResponse(f"<h1>Upload Error</h1><p>{str(e)}</p><p><a href='/test/'>Test page</a> | <a href='/search/'>Search</a></p>")
 
 
+def fully_indexed_files(request):
+    """View for fully indexed files only"""
+    query = request.GET.get('q', '').strip()
+    
+    # Get the absolute paths to the directories
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+    FULLY_INDEXED_DIR = os.path.join(BASE_DIR, "fully_indexed")
+    
+    # Ensure directory exists
+    os.makedirs(FULLY_INDEXED_DIR, exist_ok=True)
+    
+    def get_files_from_directory(directory_path):
+        """Get all files from a directory"""
+        files = []
+        if os.path.exists(directory_path):
+            for filename in os.listdir(directory_path):
+                file_path = os.path.join(directory_path, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.git'):
+                    # Apply search filter if provided
+                    if not query or query.lower() in filename.lower():
+                        file_size = os.path.getsize(file_path)
+                        file_modified = os.path.getmtime(file_path)
+                        file_info = {
+                            'name': filename,
+                            'path': file_path,
+                            'status': 'fully_indexed',
+                            'size': file_size,
+                            'modified': file_modified
+                        }
+                        files.append(file_info)
+        return files
+    
+    files = get_files_from_directory(FULLY_INDEXED_DIR)
+    files.sort(key=lambda x: x['modified'], reverse=True)
+    
+    # Calculate statistics
+    total_size = sum(f['size'] for f in files)
+    
+    context = {
+        'files': files,
+        'page_title': 'Fully Indexed Files',
+        'status_type': 'fully_indexed',
+        'file_count': len(files),
+        'total_size_formatted': get_file_size_formatted(total_size),
+        'query': query,
+        'has_query': bool(query),
+    }
+    
+    return render(request, 'ocr/file_status.html', context)
+
+def partially_indexed_files(request):
+    """View for partially indexed files only"""
+    query = request.GET.get('q', '').strip()
+    
+    # Get the absolute paths to the directories
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+    PARTIAL_INDEXED_DIR = os.path.join(BASE_DIR, "partially_indexed")
+    
+    # Ensure directory exists
+    os.makedirs(PARTIAL_INDEXED_DIR, exist_ok=True)
+    
+    def get_files_from_directory(directory_path):
+        """Get all files from a directory"""
+        files = []
+        if os.path.exists(directory_path):
+            for filename in os.listdir(directory_path):
+                file_path = os.path.join(directory_path, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.git'):
+                    # Apply search filter if provided
+                    if not query or query.lower() in filename.lower():
+                        file_size = os.path.getsize(file_path)
+                        file_modified = os.path.getmtime(file_path)
+                        file_info = {
+                            'name': filename,
+                            'path': file_path,
+                            'status': 'partially_indexed',
+                            'size': file_size,
+                            'modified': file_modified
+                        }
+                        files.append(file_info)
+        return files
+    
+    files = get_files_from_directory(PARTIAL_INDEXED_DIR)
+    files.sort(key=lambda x: x['modified'], reverse=True)
+    
+    # Calculate statistics
+    total_size = sum(f['size'] for f in files)
+    
+    context = {
+        'files': files,
+        'page_title': 'Partially Indexed Files',
+        'status_type': 'partially_indexed',
+        'file_count': len(files),
+        'total_size_formatted': get_file_size_formatted(total_size),
+        'query': query,
+        'has_query': bool(query),
+    }
+    
+    return render(request, 'ocr/file_status.html', context)
+
+def failed_files(request):
+    """View for failed files only"""
+    query = request.GET.get('q', '').strip()
+    
+    # Get the absolute paths to the directories
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+    FAILED_DIR = os.path.join(BASE_DIR, "failed")
+    
+    # Ensure directory exists
+    os.makedirs(FAILED_DIR, exist_ok=True)
+    
+    def get_files_from_directory(directory_path):
+        """Get all files from a directory"""
+        files = []
+        if os.path.exists(directory_path):
+            for filename in os.listdir(directory_path):
+                file_path = os.path.join(directory_path, filename)
+                if os.path.isfile(file_path) and not filename.startswith('.git'):
+                    # Apply search filter if provided
+                    if not query or query.lower() in filename.lower():
+                        file_size = os.path.getsize(file_path)
+                        file_modified = os.path.getmtime(file_path)
+                        file_info = {
+                            'name': filename,
+                            'path': file_path,
+                            'status': 'failed',
+                            'size': file_size,
+                            'modified': file_modified
+                        }
+                        files.append(file_info)
+        return files
+    
+    files = get_files_from_directory(FAILED_DIR)
+    files.sort(key=lambda x: x['modified'], reverse=True)
+    
+    # Calculate statistics
+    total_size = sum(f['size'] for f in files)
+    
+    context = {
+        'files': files,
+        'page_title': 'Failed Files',
+        'status_type': 'failed',
+        'file_count': len(files),
+        'total_size_formatted': get_file_size_formatted(total_size),
+        'query': query,
+        'has_query': bool(query),
+    }
+    
+    return render(request, 'ocr/file_status.html', context)
+
 def search_files(request):
     query = request.GET.get('q', '').strip()
     filter_type = request.GET.get('filter', '').strip()
+    status_filter = request.GET.get('status', '').strip()  # New status parameter
     
     # Advanced filter parameters
     min_size = request.GET.get('min_size', '').strip()
@@ -267,6 +427,10 @@ def search_files(request):
     
     def should_include_file(filename, file_path, file_size, file_modified):
         """Check if file should be included based on all filters"""
+        # Hide .git files and directories
+        if filename.startswith('.git') or '.git' in filename:
+            return False
+        
         # Text search filter
         if query and query.lower() not in filename.lower():
             return False
@@ -367,15 +531,15 @@ def search_files(request):
         return files
     
     # Get files from directories based on processing status filter
-    if filter_type == 'fully_indexed':
+    if status_filter == 'fully_indexed' or filter_type == 'fully_indexed':
         fully_indexed_files = get_files_from_directory(FULLY_INDEXED_DIR, 'fully_indexed')
         partially_indexed_files = []
         failed_files = []
-    elif filter_type == 'partially_indexed':
+    elif status_filter == 'partially_indexed' or filter_type == 'partially_indexed':
         fully_indexed_files = []
         partially_indexed_files = get_files_from_directory(PARTIAL_INDEXED_DIR, 'partially_indexed')
         failed_files = []
-    elif filter_type == 'failed':
+    elif status_filter == 'failed' or filter_type == 'failed':
         fully_indexed_files = []
         partially_indexed_files = []
         failed_files = get_files_from_directory(FAILED_DIR, 'failed')
@@ -425,7 +589,8 @@ def search_files(request):
         'query': query,
         'has_query': bool(query),
         'filter_type': filter_type,
-        'has_filter': bool(filter_type or min_size or max_size or date_from or date_to or has_name or has_account),
+        'status_filter': status_filter,
+        'has_filter': bool(filter_type or status_filter or min_size or max_size or date_from or date_to or has_name or has_account),
         'has_advanced_filters': bool(min_size or max_size or date_from or date_to or has_name or has_account),
     })
 
@@ -472,7 +637,7 @@ def reset_statistics(request):
     except Exception as e:
         messages.error(request, f"Error resetting statistics: {str(e)}")
     
-    return redirect('upload_file')
+    return redirect('ocr:upload_file')
 
 
 def statistics_view(request):
@@ -515,7 +680,14 @@ def search_view(request):
 
     if query:
         for root, dirs, files in os.walk(settings.MEDIA_ROOT):
+            # Remove .git directories from dirs to prevent os.walk from traversing them
+            dirs[:] = [d for d in dirs if not d.startswith('.git')]
+            
             for file in files:
+                # Skip .git files
+                if file.startswith('.git') or '.git' in file:
+                    continue
+                    
                 if query.lower() in file.lower():
                     rel_path = os.path.relpath(os.path.join(root, file), settings.MEDIA_ROOT)
                     results.append({

@@ -2,204 +2,202 @@
 
 {% block title %}Upload Files - File Manager{% endblock %}
 
+{% block page_title %}File Upload{% endblock %}
+{% block page_subtitle %}Upload and process your documents with advanced OCR{% endblock %}
+
 {% block content %}
-<div class="container">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <!-- Statistics Cards -->
-      <div class="row stats-cards">
-        <div class="col-md-4">
-          <div class="card stat-card">
-            <div class="stat-icon text-primary">
-              <i class="fas fa-upload"></i>
-            </div>
-            <h5>Quick Upload</h5>
-            <p class="text-muted mb-0">Drag & Drop or Browse</p>
-          </div>
+<!-- Dashboard Metrics -->
+<div class="metric-row">
+  <div class="metric-card">
+    <div class="metric-icon">
+      <i class="fas fa-upload"></i>
+    </div>
+    <div class="metric-value">{{ statistics.total_files|default:0 }}</div>
+    <div class="metric-label">Total Files</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-icon">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <div class="metric-value">{{ statistics.fully_indexed|default:0 }}</div>
+    <div class="metric-label">Fully Indexed</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-icon">
+      <i class="fas fa-exclamation-triangle"></i>
+    </div>
+    <div class="metric-value">{{ statistics.partially_indexed|default:0 }}</div>
+    <div class="metric-label">Partially Indexed</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-icon">
+      <i class="fas fa-times-circle"></i>
+    </div>
+    <div class="metric-value">{{ statistics.failed|default:0 }}</div>
+    <div class="metric-label">Failed</div>
+  </div>
+</div>
+
+<div class="dashboard-grid">
+  <!-- File Upload Card -->
+  <div class="dashboard-card">
+    <div class="card-header-content">
+      <h3 class="card-title">Upload Documents</h3>
+      <div class="card-icon">
+        <i class="fas fa-cloud-upload-alt"></i>
+      </div>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" action="{% url 'ocr:upload_file' %}" class="upload-form">
+      {% csrf_token %}
+      
+      <div class="file-upload-area" id="uploadArea">
+        <input type="file" id="id_files" name="files" multiple accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+        <div class="upload-icon">
+          <i class="fas fa-cloud-upload-alt"></i>
         </div>
-        <div class="col-md-4">
-          <div class="card stat-card">
-            <div class="stat-icon text-success">
-              <i class="fas fa-robot"></i>
-            </div>
-            <h5>OCR Processing</h5>
-            <p class="text-muted mb-0">Automatic Text Extraction</p>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="card stat-card">
-            <div class="stat-icon text-info">
-              <i class="fas fa-folder-open"></i>
-            </div>
-            <h5>Auto Organization</h5>
-            <p class="text-muted mb-0">Smart File Sorting</p>
-          </div>
-        </div>
+        <div class="upload-text">Drop files here or click to browse</div>
+        <div class="upload-subtext">Support for PDF, JPG, PNG files (up to 100 files)</div>
+        <div class="file-count" style="margin-top: 15px; color: #ff4757; font-weight: 600;"></div>
       </div>
 
-      <!-- Upload Form Card -->
-      <div class="card">
-        <div class="card-header text-center bg-transparent">
-          <h2 class="mb-0"><i class="fas fa-cloud-upload-alt me-2"></i>Upload Scanned Files</h2>
-          <p class="text-muted">Support for PDF and image files (PNG, JPG, JPEG)</p>
+      <div class="progress-container" style="display: none; margin: 20px 0;">
+        <div class="progress">
+          <div class="progress-bar" role="progressbar" style="width: 0%"></div>
         </div>
-        <div class="card-body">
-          {% if messages %}
-            <div class="messages">
-              {% for msg in messages %}
-                {% if msg.tags == 'success' %}
-                  <div class="alert alert-success" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>{{ msg }}
-                  </div>
-                {% elif msg.tags == 'error' %}
-                  <div class="alert alert-danger" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i>{{ msg }}
-                  </div>
-                {% else %}
-                  <div class="alert alert-info" role="alert">
-                    <i class="fas fa-info-circle me-2"></i>{{ msg }}
-                  </div>
-                {% endif %}
-              {% endfor %}
-            </div>
-          {% endif %}
-
-          <form method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}" class="upload-form">
-            {% csrf_token %}
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">{{ form.files.label }}</label>
-              <div class="file-input-wrapper">
-                {{ form.files }}
-                <div class="file-input-display">
-                  <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #667eea;"></i>
-                  <div class="mt-2">Drop files here or click to browse</div>
-                  <small class="text-muted">Support for PDF and image files (up to 100 files)</small>
-                </div>
-              </div>
-              <div class="file-count"></div>
-            </div>
-
-            <div class="progress-container">
-              <div class="progress">
-                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
-              </div>
-              <small class="text-muted mt-1">Processing files...</small>
-            </div>
-
-            <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-primary btn-lg">
-                <i class="fas fa-upload me-2"></i>Upload & Process Files
-              </button>
-            </div>
-          </form>
-        </div>
+        <small style="color: #888; margin-top: 8px; display: block;">Processing files...</small>
+        <div id="upload-status" style="margin-top: 10px; color: #2ecc71; font-weight: 600;"></div>
       </div>
 
-      <!-- Session Statistics Dashboard -->
-      <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Your Session Statistics</h5>
-          <a href="{% url 'reset_statistics' %}" class="btn btn-outline-danger btn-sm" 
-             onclick="return confirm('Are you sure you want to reset your session statistics?')">
-            <i class="fas fa-redo me-1"></i>Reset Stats
-          </a>
+      <button type="submit" class="btn btn-primary" id="upload-btn" style="width: 100%; margin-top: 15px;">
+        <i class="fas fa-upload" style="margin-right: 8px;"></i>Upload & Process Files
+      </button>
+    </form>
+  </div>
+
+  <!-- Session Statistics Card -->
+  <div class="dashboard-card">
+    <div class="card-header-content">
+      <h3 class="card-title">Session Statistics</h3>
+      <div class="card-icon">
+        <i class="fas fa-chart-pie"></i>
+      </div>
+    </div>
+    
+    <div class="activity-timeline">
+      <div class="activity-item">
+        <div class="activity-icon">
+          <i class="fas fa-file"></i>
         </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-primary">{{ statistics.total_files|default:0 }}</div>
-                <div class="stat-label">Total Files</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-success">{{ statistics.fully_indexed|default:0 }}</div>
-                <div class="stat-label">Fully Indexed</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-warning">{{ statistics.partially_indexed|default:0 }}</div>
-                <div class="stat-label">Partially Indexed</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-danger">{{ statistics.failed|default:0 }}</div>
-                <div class="stat-label">Failed</div>
-              </div>
-            </div>
-          </div>
-          
-          {% if statistics.first_upload or statistics.last_upload %}
-          <hr>
-          <div class="row">
-            <div class="col-md-6">
-              <small class="text-muted">
-                <i class="fas fa-clock me-1"></i>
-                <strong>First Upload:</strong> 
-                {% if statistics.first_upload %}
-                  {{ statistics.first_upload|date:"M j, Y g:i A" }}
-                {% else %}
-                  No uploads yet
-                {% endif %}
-              </small>
-            </div>
-            <div class="col-md-6">
-              <small class="text-muted">
-                <i class="fas fa-clock me-1"></i>
-                <strong>Last Upload:</strong> 
-                {% if statistics.last_upload %}
-                  {{ statistics.last_upload|date:"M j, Y g:i A" }}
-                {% else %}
-                  No uploads yet
-                {% endif %}
-              </small>
-            </div>
-          </div>
-          {% endif %}
-          
-          {% if statistics.success_rate > 0 %}
-          <div class="mt-3">
-            <div class="d-flex justify-content-between">
-              <small>Success Rate</small>
-              <small>{{ statistics.success_rate }}%</small>
-            </div>
-            <div class="progress" style="height: 6px;">
-              <div class="progress-bar bg-success" style="width: {{ statistics.success_rate }}%"></div>
-            </div>
-          </div>
-          {% endif %}
+        <div class="activity-content">
+          <div class="activity-title">Total Files Processed</div>
+          <div class="activity-details">{{ statistics.total_files|default:0 }} documents</div>
+          <div class="activity-time">Since session start</div>
         </div>
       </div>
-
-      <!-- Quick Actions -->
-      <div class="row mt-4">
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-body text-center">
-              <i class="fas fa-search fa-2x text-primary mb-3"></i>
-              <h5>Search Files</h5>
-              <p class="text-muted">Find processed documents quickly</p>
-              <a href="{% url 'search_files' %}" class="btn btn-outline-primary">
-                <i class="fas fa-search me-1"></i>Search Now
-              </a>
-            </div>
-          </div>
+      
+      <div class="activity-item">
+        <div class="activity-icon">
+          <i class="fas fa-check"></i>
         </div>
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-body text-center">
-              <i class="fas fa-chart-bar fa-2x text-success mb-3"></i>
-              <h5>File Statistics</h5>
-              <p class="text-muted">View processing analytics</p>
-              <a href="{% url 'statistics' %}" class="btn btn-outline-success">
-                <i class="fas fa-chart-line me-1"></i>View Stats
-              </a>
-            </div>
+        <div class="activity-content">
+          <div class="activity-title">Success Rate</div>
+          <div class="activity-details">
+            {% if statistics.success_rate %}
+              {{ statistics.success_rate }}% successful processing
+            {% else %}
+              No files processed yet
+            {% endif %}
           </div>
+          <div class="activity-time">Current session</div>
+        </div>
+      </div>
+      
+      {% if statistics.last_upload %}
+      <div class="activity-item">
+        <div class="activity-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="activity-content">
+          <div class="activity-title">Last Upload</div>
+          <div class="activity-details">{{ statistics.last_upload|date:"M j, Y g:i A" }}</div>
+          <div class="activity-time">{{ statistics.last_upload|timesince }} ago</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    
+    <div style="margin-top: 20px; text-align: center;">
+      <a href="{% url 'ocr:reset_statistics' %}" class="btn btn-outline-primary" 
+         onclick="return confirm('Are you sure you want to reset your session statistics?')"
+         style="font-size: 13px; padding: 8px 16px;">
+        <i class="fas fa-redo" style="margin-right: 5px;"></i>Reset Statistics
+      </a>
+    </div>
+  </div>
+
+  <!-- Quick Actions Card -->
+  <div class="dashboard-card">
+    <div class="card-header-content">
+      <h3 class="card-title">Quick Actions</h3>
+      <div class="card-icon">
+        <i class="fas fa-bolt"></i>
+      </div>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <a href="{% url 'ocr:search_files' %}" class="btn btn-outline-primary" style="display: flex; align-items: center; justify-content: center;">
+        <i class="fas fa-search" style="margin-right: 8px;"></i>Search Files
+      </a>
+      <a href="{% url 'ocr:statistics' %}" class="btn btn-outline-primary" style="display: flex; align-items: center; justify-content: center;">
+        <i class="fas fa-chart-line" style="margin-right: 8px;"></i>View Statistics
+      </a>
+      <button class="btn btn-outline-primary" style="display: flex; align-items: center; justify-content: center;">
+        <i class="fas fa-cog" style="margin-right: 8px;"></i>OCR Settings
+      </button>
+    </div>
+  </div>
+
+  <!-- Recent Activity Card -->
+  <div class="dashboard-card">
+    <div class="card-header-content">
+      <h3 class="card-title">Processing Status</h3>
+      <div class="card-icon">
+        <i class="fas fa-tasks"></i>
+      </div>
+    </div>
+    
+    <div class="activity-timeline">
+      <div class="activity-item">
+        <div class="activity-icon" style="background: rgba(46, 204, 113, 0.1); color: #2ecc71;">
+          <i class="fas fa-check"></i>
+        </div>
+        <div class="activity-content">
+          <div class="activity-title">OCR Engine</div>
+          <div class="activity-details">Tesseract v5.5.0 - Ready</div>
+          <div class="activity-time">System ready</div>
+        </div>
+      </div>
+      
+      <div class="activity-item">
+        <div class="activity-icon" style="background: rgba(52, 152, 219, 0.1); color: #3498db;">
+          <i class="fas fa-brain"></i>
+        </div>
+        <div class="activity-content">
+          <div class="activity-title">AI Processing</div>
+          <div class="activity-details">Handwriting & Boxed field detection</div>
+          <div class="activity-time">Enhanced OCR active</div>
+        </div>
+      </div>
+      
+      <div class="activity-item">
+        <div class="activity-icon" style="background: rgba(241, 196, 15, 0.1); color: #f1c40f;">
+          <i class="fas fa-folder"></i>
+        </div>
+        <div class="activity-content">
+          <div class="activity-title">Auto-Sorting</div>
+          <div class="activity-details">Smart file organization enabled</div>
+          <div class="activity-time">Background processing</div>
         </div>
       </div>
     </div>
@@ -207,26 +205,162 @@
 </div>
 
 <script>
-// Enhanced file upload handling
+// Enhanced file upload handling with Paragon-style interactions
 document.addEventListener('DOMContentLoaded', function() {
-  const form = document.querySelector('.upload-form');
+  const uploadArea = document.getElementById('uploadArea');
+  const fileInput = document.getElementById('id_files');
+  const fileCount = document.querySelector('.file-count');
   const progressContainer = document.querySelector('.progress-container');
   const progressBar = document.querySelector('.progress-bar');
-  
+  const form = document.querySelector('.upload-form');
+
+  // Click to browse
+  uploadArea.addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  // File selection
+  fileInput.addEventListener('change', function() {
+    // Clear any dropped files when using file input
+    window.droppedFiles = null;
+    updateFileDisplay(this.files);
+  });
+
+  // Drag and drop
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    
+    // Store dropped files in a global variable for form submission
+    window.droppedFiles = files;
+    updateFileDisplay(files);
+  });
+
+  function updateFileDisplay(files) {
+    if (files.length > 0) {
+      uploadArea.innerHTML = `
+        <div class="upload-icon" style="color: #2ecc71;">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="upload-text">${files.length} file(s) selected</div>
+        <div class="upload-subtext">Ready to upload and process</div>
+        <div class="file-count" style="margin-top: 15px; color: #2ecc71; font-weight: 600;">
+          ${files.length} file(s) ready for processing
+        </div>
+      `;
+    } else {
+      uploadArea.innerHTML = `
+        <div class="upload-icon">
+          <i class="fas fa-cloud-upload-alt"></i>
+        </div>
+        <div class="upload-text">Drop files here or click to browse</div>
+        <div class="upload-subtext">Support for PDF, JPG, PNG files (up to 100 files)</div>
+        <div class="file-count" style="margin-top: 15px; color: #ff4757; font-weight: 600;"></div>
+      `;
+    }
+  }
+
+  // Form submission with progress
   if (form) {
-    form.addEventListener('submit', function() {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault(); // Prevent default form submission
+      
+      const submitBtn = document.getElementById('upload-btn');
+      const uploadStatus = document.getElementById('upload-status');
+      
+      // Get files from either file input or dropped files
+      let files = fileInput.files;
+      if (window.droppedFiles && window.droppedFiles.length > 0) {
+        files = window.droppedFiles;
+      }
+      
+      // Check if files are selected
+      if (!files || files.length === 0) {
+        alert('Please select at least one file to upload.');
+        return false;
+      }
+      
+      // Disable submit button and show progress
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>Processing...';
+      
+      // Show progress bar
       progressContainer.style.display = 'block';
-      // Simulate progress (you can make this real with AJAX)
+      uploadStatus.textContent = `Uploading ${files.length} file(s)...`;
+      
+      // Create FormData and add files
+      const formData = new FormData();
+      formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+      
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+      
+      // Start progress animation
       let progress = 0;
       const interval = setInterval(() => {
-        progress += 10;
+        progress += 15;
         progressBar.style.width = progress + '%';
-        if (progress >= 90) {
+        
+        if (progress <= 30) {
+          uploadStatus.textContent = 'Uploading files...';
+        } else if (progress <= 60) {
+          uploadStatus.textContent = 'Processing with OCR...';
+        } else if (progress <= 90) {
+          uploadStatus.textContent = 'Organizing files...';
+        } else {
+          uploadStatus.textContent = 'Finalizing...';
           clearInterval(interval);
         }
-      }, 200);
+      }, 500);
+      
+      // Submit via fetch API
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        }
+      })
+      .then(response => {
+        clearInterval(interval);
+        progressBar.style.width = '100%';
+        
+        if (response.ok) {
+          uploadStatus.textContent = 'Upload completed successfully!';
+          uploadStatus.style.color = '#2ecc71';
+          
+          // Redirect after a short delay
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      })
+      .catch(error => {
+        clearInterval(interval);
+        uploadStatus.textContent = 'Upload failed. Please try again.';
+        uploadStatus.style.color = '#ff4757';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-upload" style="margin-right: 8px;"></i>Upload & Process Files';
+        console.error('Upload error:', error);
+      });
+      
+      return false;
     });
   }
 });
 </script>
+
 {% endblock %}
