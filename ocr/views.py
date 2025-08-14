@@ -101,10 +101,6 @@ def debug_ocr(request):
 
 def upload_file(request):
     """Main upload view with full OCR functionality"""
-    print(f"DEBUG: upload_file called with method: {request.method}")
-    print(f"DEBUG: CSRF token present: {'csrftoken' in request.COOKIES}")
-    print(f"DEBUG: POST data keys: {list(request.POST.keys()) if request.method == 'POST' else 'Not POST'}")
-    
     try:
         # Ensure session exists
         if not request.session.session_key:
@@ -112,14 +108,7 @@ def upload_file(request):
         session_key = request.session.session_key
         
         if request.method == 'POST':
-            print(f"DEBUG: POST request received")
-            print(f"DEBUG: FILES in request: {list(request.FILES.keys())}")
-            
             form = FileUploadForm(request.POST, request.FILES)
-            print(f"DEBUG: Form is valid: {form.is_valid()}")
-            
-            if not form.is_valid():
-                print(f"DEBUG: Form errors: {form.errors}")
             
             if form.is_valid():
                 # Get the absolute paths to the directories (same as watcher.py)
