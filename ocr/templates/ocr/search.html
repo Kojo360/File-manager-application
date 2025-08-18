@@ -1,612 +1,384 @@
 {% extends 'ocr/base.html' %}
 {% load ocr_filters %}
 
-{% block title %}Search Files - File Manager{% endblock %}
+{% block title %}Search & Browse Files - File Manager{% endblock %}
+
+{% block page_title %}Search & Browse{% endblock %}
+{% block page_subtitle %}Find and manage your processed documents{% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="row justify-content-center">
-    <div class="col-lg-10">
-      <!-- Search Header -->
-      <div class="card">
-        <div class="card-header text-center bg-transparent">
-          <h2 class="mb-0"><i class="fas fa-search me-2"></i>File Management Dashboard</h2>
-          <p class="text-muted">Browse and search all processed documents</p>
+<div class="container-fluid">
+  <!-- Enhanced Search Interface -->
+  <div class="search-container mb-4">
+    <div class="search-card">
+      <form method="get" action="{% url 'ocr:search_files' %}" class="search-form" id="searchForm">
+        <!-- Main Search Bar -->
+        <div class="main-search-bar">
+          <div class="search-input-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" 
+                   name="q" 
+                   class="search-input" 
+                   placeholder="Search filenames, extracted names, account numbers, or any text content..." 
+                   value="{{ query|default:'' }}"
+                   autocomplete="off">
+            <button type="submit" class="search-submit-btn">
+              <i class="fas fa-arrow-right"></i>
+            </button>
+          </div>
         </div>
-        <div class="card-body">
-          <!-- Enhanced Search Form with Filters -->
-          <form method="get" action="{% url 'ocr:search_files' %}" class="search-form">
-            <div class="row">
-              <!-- Search Input -->
-              <div class="col-md-8">
-                <div class="input-group mb-3">
-                  <span class="input-group-text bg-transparent border-end-0">
-                    <i class="fas fa-search text-muted"></i>
-                  </span>
-                  <input type="text" 
-                         name="q" 
-                         class="form-control border-start-0 border-end-0 ps-0" 
-                         placeholder="Search by filename, name, or account number..." 
-                         value="{{ query|default:'' }}"
-                         style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
-                </div>
-              </div>
-              
-              <!-- Filter Dropdown -->
-              <div class="col-md-4">
-                <div class="input-group mb-3">
-                  <span class="input-group-text bg-transparent border-end-0">
-                    <i class="fas fa-filter text-muted"></i>
-                  </span>
-                  <select name="filter" class="form-select border-start-0" style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
-                    <option value="">All Files</option>
-                    <optgroup label="Processing Status">
-                      <option value="fully_indexed" {% if filter_type == 'fully_indexed' %}selected{% endif %}>
-                        ✅ Fully Indexed
-                      </option>
-                      <option value="partially_indexed" {% if filter_type == 'partially_indexed' %}selected{% endif %}>
-                        ⚠️ Partially Indexed
-                      </option>
-                      <option value="failed" {% if filter_type == 'failed' %}selected{% endif %}>
-                        ❌ Failed Processing
-                      </option>
-                    </optgroup>
-                    <optgroup label="File Type">
-                      <option value="pdf" {% if filter_type == 'pdf' %}selected{% endif %}>
-                        📄 PDF Files
-                      </option>
-                      <option value="image" {% if filter_type == 'image' %}selected{% endif %}>
-                        🖼️ Image Files
-                      </option>
-                    </optgroup>
-                    <optgroup label="Date Range">
-                      <option value="today" {% if filter_type == 'today' %}selected{% endif %}>
-                        📅 Today
-                      </option>
-                      <option value="week" {% if filter_type == 'week' %}selected{% endif %}>
-                        📅 This Week
-                      </option>
-                      <option value="month" {% if filter_type == 'month' %}selected{% endif %}>
-                        📅 This Month
-                      </option>
-                    </optgroup>
-                    <optgroup label="File Size">
-                      <option value="large" {% if filter_type == 'large' %}selected{% endif %}>
-                        📊 Large Files (>1MB)
-                      </option>
-                      <option value="small" {% if filter_type == 'small' %}selected{% endif %}>
-                        📊 Small Files (<100KB)
-                      </option>
-                    </optgroup>
-                  </select>
-                </div>
-              </div>
+
+        <!-- Quick Filter Chips -->
+        <div class="quick-filters">
+          <div class="filter-chips-container">
+            <span class="filter-label">Quick Filters:</span>
+            <div class="filter-chips">
+              <button type="button" class="filter-chip {% if not filter_type %}active{% endif %}" data-filter="" onclick="setFilter('')">
+                <i class="fas fa-list"></i> All Files
+              </button>
+              <button type="button" class="filter-chip {% if filter_type == 'fully_indexed' %}active{% endif %}" data-filter="fully_indexed" onclick="setFilter('fully_indexed')">
+                <i class="fas fa-check-circle"></i> Ready to Search
+              </button>
+              <button type="button" class="filter-chip {% if filter_type == 'partially_indexed' %}active{% endif %}" data-filter="partially_indexed" onclick="setFilter('partially_indexed')">
+                <i class="fas fa-exclamation-triangle"></i> Needs Review
+              </button>
+              <button type="button" class="filter-chip {% if filter_type == 'failed' %}active{% endif %}" data-filter="failed" onclick="setFilter('failed')">
+                <i class="fas fa-times-circle"></i> Failed
+              </button>
+              <button type="button" class="filter-chip {% if filter_type == 'today' %}active{% endif %}" data-filter="today" onclick="setFilter('today')">
+                <i class="fas fa-calendar-day"></i> Today
+              </button>
+              <button type="button" class="filter-chip {% if filter_type == 'week' %}active{% endif %}" data-filter="week" onclick="setFilter('week')">
+                <i class="fas fa-calendar-week"></i> This Week
+              </button>
             </div>
             
-            <!-- Search Controls -->
-            <div class="row">
-              <div class="col-12">
-                <div class="d-flex gap-2 justify-content-center">
-                  <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search me-1"></i>Search & Filter
-                  </button>
-                  {% if has_query or has_filter %}
-                    <a href="{% url 'ocr:search_files' %}" class="btn btn-outline-secondary">
-                      <i class="fas fa-times me-1"></i>Clear All
-                    </a>
-                  {% endif %}
-                  <button type="button" class="btn btn-outline-info" onclick="toggleAdvancedFilters()">
-                    <i class="fas fa-cog me-1"></i>Advanced
-                  </button>
-                </div>
-              </div>
+            <!-- Reset All Filters Button -->
+            <div class="reset-filters">
+              {% if has_any_filters %}
+                <button type="button" class="btn-reset" onclick="resetAllFilters()" title="Clear all filters and search">
+                  <i class="fas fa-times"></i> Reset All
+                </button>
+              {% endif %}
             </div>
-            
-            <!-- Advanced Filters (Hidden by default) -->
-            <div id="advanced-filters" class="mt-3" style="display: none;">
-              <div class="card">
-                <div class="card-header bg-transparent">
-                  <h6 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Advanced Filters</h6>
-                </div>
-                <div class="card-body">
-                  <div class="row">
-                    <div class="col-md-6">
-                      <label class="form-label">Minimum File Size (KB)</label>
-                      <input type="number" name="min_size" class="form-control" placeholder="0" value="{{ request.GET.min_size }}">
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Maximum File Size (KB)</label>
-                      <input type="number" name="max_size" class="form-control" placeholder="Unlimited" value="{{ request.GET.max_size }}">
-                    </div>
-                  </div>
-                  <div class="row mt-3">
-                    <div class="col-md-6">
-                      <label class="form-label">Files Processed After</label>
-                      <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Files Processed Before</label>
-                      <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
-                    </div>
-                  </div>
-                  <div class="row mt-3">
-                    <div class="col-md-6">
-                      <label class="form-label">Contains Name</label>
-                      <input type="text" name="has_name" class="form-control" placeholder="Search extracted names" value="{{ request.GET.has_name }}">
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label">Contains Account</label>
-                      <input type="text" name="has_account" class="form-control" placeholder="Search extracted accounts" value="{{ request.GET.has_account }}">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </form>
+          </div>
           
-          <!-- Filter Indicator -->
-          {% if has_filter %}
-            <div class="alert alert-info mt-3" role="alert">
-              <i class="fas fa-filter me-2"></i>
-              <strong>Active Filter:</strong> 
-              {% if filter_type == 'fully_indexed' %}
-                Showing only <span class="badge bg-success">✅ Fully Indexed</span> files
-              {% elif filter_type == 'partially_indexed' %}
-                Showing only <span class="badge bg-warning">⚠️ Partially Indexed</span> files
-              {% elif filter_type == 'failed' %}
-                Showing only <span class="badge bg-danger">❌ Failed</span> files
-              {% elif filter_type == 'pdf' %}
-                Showing only <span class="badge bg-primary">📄 PDF</span> files
-              {% elif filter_type == 'image' %}
-                Showing only <span class="badge bg-info">🖼️ Image</span> files
-              {% elif filter_type == 'today' %}
-                Showing files from <span class="badge bg-secondary">📅 Today</span>
-              {% elif filter_type == 'week' %}
-                Showing files from <span class="badge bg-secondary">📅 This Week</span>
-              {% elif filter_type == 'month' %}
-                Showing files from <span class="badge bg-secondary">📅 This Month</span>
-              {% elif filter_type == 'large' %}
-                Showing only <span class="badge bg-dark">📊 Large Files</span> (>1MB)
-              {% elif filter_type == 'small' %}
-                Showing only <span class="badge bg-light text-dark">📊 Small Files</span> (<100KB)
-              {% elif filter_type == 'all' %}
-                Showing <span class="badge bg-info">All</span> files
-              {% endif %}
-              
-              {% if request.GET.min_size or request.GET.max_size or request.GET.date_from or request.GET.date_to or request.GET.has_name or request.GET.has_account %}
-                <span class="ms-2">
-                  <i class="fas fa-plus me-1"></i>
-                  <small>Advanced filters applied</small>
-                </span>
-              {% endif %}
-              
-                  <a href="{% url 'ocr:search_files' %}" class="btn btn-sm btn-outline-info ms-2">
-                <i class="fas fa-times me-1"></i>Clear Filters
-              </a>
-            </div>
-          {% endif %}
+          <!-- Advanced Toggle -->
+          <button type="button" class="advanced-toggle" onclick="toggleAdvancedFilters()">
+            <i class="fas fa-sliders-h"></i>
+            Advanced
+            <i class="fas fa-chevron-down toggle-icon"></i>
+          </button>
         </div>
-      </div>
 
-      <!-- Statistics Cards -->
-      <div class="row stats-cards mt-4">
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="scrollToSection('fully-indexed-section')">
-            <div class="stat-icon text-success">
-              <i class="fas fa-check-circle"></i>
+        <!-- Hidden form fields for filters -->
+        <input type="hidden" name="filter" value="{{ filter_type|default:'' }}" id="filterInput">
+
+        <!-- Advanced Filters Panel -->
+        <div id="advanced-filters" class="advanced-filters-panel" style="display: none;">
+          <div class="advanced-grid">
+            <div class="filter-group">
+              <label>File Type</label>
+              <select name="file_type" class="form-control">
+                <option value="">All Types</option>
+                <option value="pdf" {% if request.GET.file_type == 'pdf' %}selected{% endif %}>PDF Documents</option>
+                <option value="image" {% if request.GET.file_type == 'image' %}selected{% endif %}>Images</option>
+              </select>
             </div>
-            <h4 class="mb-1">{{ stats.fully_indexed_count }}</h4>
-            <h6>Fully Indexed</h6>
-            <small class="text-muted">Name & Account Found</small>
+            
+            <div class="filter-group">
+              <label>File Size Range</label>
+              <div class="size-inputs">
+                <input type="number" name="min_size" placeholder="Min KB" value="{{ request.GET.min_size }}">
+                <span>to</span>
+                <input type="number" name="max_size" placeholder="Max KB" value="{{ request.GET.max_size }}">
+              </div>
+            </div>
+            
+            <div class="filter-group">
+              <label>Date Range</label>
+              <div class="date-inputs">
+                <input type="date" name="date_from" value="{{ request.GET.date_from }}">
+                <span>to</span>
+                <input type="date" name="date_to" value="{{ request.GET.date_to }}">
+              </div>
+            </div>
+            
+            <div class="filter-group">
+              <label>Extracted Content</label>
+              <div class="content-inputs">
+                <input type="text" name="has_name" placeholder="Contains name..." value="{{ request.GET.has_name }}">
+                <input type="text" name="has_account" placeholder="Contains account..." value="{{ request.GET.has_account }}">
+              </div>
+            </div>
+          </div>
+          
+          <div class="advanced-actions">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-search"></i> Apply Filters
+            </button>
+            <a href="{% url 'ocr:search_files' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-times"></i> Clear All
+            </a>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="scrollToSection('partially-indexed-section')">
-            <div class="stat-icon text-warning">
-              <i class="fas fa-exclamation-circle"></i>
-            </div>
-            <h4 class="mb-1">{{ stats.partially_indexed_count }}</h4>
-            <h6>Partially Indexed</h6>
-            <small class="text-muted">Name or Account Found</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="scrollToSection('failed-section')">
-            <div class="stat-icon text-danger">
-              <i class="fas fa-times-circle"></i>
-            </div>
-            <h4 class="mb-1">{{ stats.failed_count }}</h4>
-            <h6>Failed</h6>
-            <small class="text-muted">No Data Extracted</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="scrollToSection('recent-activity-section')">
-            <div class="stat-icon text-info">
+      </form>
+    </div>
+  </div>
+
+  <!-- Results Section -->
+  <div class="results-section">
+    {% if files %}
+      <!-- Results Header with Bulk Selection -->
+      <div class="results-header">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="results-info">
+            <h5 class="mb-0">
               <i class="fas fa-file-alt"></i>
-            </div>
-            <h4 class="mb-1">{{ stats.total_count }}</h4>
-            <h6>Total Files</h6>
-            <small class="text-muted">{{ total_size_formatted }}</small>
+              Found {{ files|length }} file{{ files|length|pluralize }}
+              {% if query %}for "{{ query }}"{% endif %}
+            </h5>
+            {% if has_filter %}
+              <small class="text-muted">
+                <i class="fas fa-filter"></i> Filtered by: {{ filter_display|default:filter_type }}
+              </small>
+            {% endif %}
           </div>
-        </div>
-      </div>
-
-      <!-- Processing Activity Timeline -->
-      {% if recent_activity %}
-      <div class="card mt-4" id="recent-activity-section">
-        <div class="card-header bg-transparent">
-          <h5 class="mb-0">
-            <i class="fas fa-history me-2 text-primary"></i>
-            Recent Processing Activity
-          </h5>
-          <small class="text-muted">Latest file processing events</small>
-        </div>
-        <div class="card-body">
-          <div class="activity-timeline">
-            {% for activity in recent_activity %}
-              <div class="activity-item">
-                <div class="activity-icon">
-                  {% if activity.status == 'fully_indexed' %}
-                    <i class="fas fa-check-circle text-success"></i>
-                  {% elif activity.status == 'partially_indexed' %}
-                    <i class="fas fa-exclamation-circle text-warning"></i>
-                  {% elif activity.status == 'failed' %}
-                    <i class="fas fa-times-circle text-danger"></i>
-                  {% else %}
-                    <i class="fas fa-upload text-info"></i>
-                  {% endif %}
-                </div>
-                <div class="activity-content">
-                  <div class="activity-title">{{ activity.original_filename }}</div>
-                  <div class="activity-status">
-                    Status: <span class="badge bg-{{ activity.status|status_color }}">{{ activity.get_status_display }}</span>
-                    {% if activity.final_filename %}
-                      → {{ activity.final_filename }}
-                    {% endif %}
-                  </div>
-                  <div class="activity-time">
-                    <i class="fas fa-clock me-1"></i>{{ activity.processed_at|timesince }} ago
-                    {% if activity.file_size %}
-                      <span class="ms-2"><i class="fas fa-file me-1"></i>{{ activity.file_size|filesizeformat }}</span>
-                    {% endif %}
-                  </div>
-                </div>
+          
+          <div class="view-controls">
+            <div class="btn-group" role="group">
+              <input type="checkbox" class="btn-check" id="select-all" onchange="toggleSelectAll()">
+              <label class="btn btn-outline-secondary btn-sm" for="select-all">
+                <i class="fas fa-check-square"></i> Select All
+              </label>
+              
+              <button class="btn btn-outline-secondary btn-sm" onclick="toggleViewMode()" id="view-toggle">
+                <i class="fas fa-th-large"></i> Grid View
+              </button>
+              
+              <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                  <i class="fas fa-sort"></i> Sort
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="?{{ request.GET.urlencode }}&sort=name">Name</a></li>
+                  <li><a class="dropdown-item" href="?{{ request.GET.urlencode }}&sort=date">Date Added</a></li>
+                  <li><a class="dropdown-item" href="?{{ request.GET.urlencode }}&sort=size">File Size</a></li>
+                  <li><a class="dropdown-item" href="?{{ request.GET.urlencode }}&sort=status">Status</a></li>
+                </ul>
               </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Daily Statistics Chart -->
-      {% if daily_stats %}
-      <div class="card mt-4">
-        <div class="card-header bg-transparent">
-          <h5 class="mb-0">
-            <i class="fas fa-chart-line me-2 text-success"></i>
-            Processing Trends (Last 7 Days)
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            {% for day_stat in daily_stats %}
-              <div class="col-md-4 mb-3">
-                <div class="daily-stat-card">
-                  <h6>{{ day_stat.date|date:"M d" }}</h6>
-                  <div class="stat-row">
-                    <span class="text-success">✓ {{ day_stat.fully_indexed }}</span>
-                    <span class="text-warning">⚠ {{ day_stat.partially_indexed }}</span>
-                    <span class="text-danger">✗ {{ day_stat.failed }}</span>
-                  </div>
-                  <small class="text-muted">{{ day_stat.total_uploaded }} uploaded</small>
-                  <div class="success-rate">
-                    Success: {{ day_stat.success_rate }}%
-                  </div>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Fully Indexed Files -->
-      {% if fully_indexed_files %}
-      <div class="card mt-4" id="fully-indexed-section">
-        <div class="card-header bg-transparent">
-          <h5 class="mb-0">
-            <i class="fas fa-check-circle me-2 text-success"></i>
-            Fully Indexed Files ({{ stats.fully_indexed_count }})
-          </h5>
-          <small class="text-muted">Files with both name and account number extracted</small>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            {% for file in fully_indexed_files %}
-              <div class="col-md-6 mb-3">
-                <div class="file-result status-success">
-                  <div class="file-icon">
-                    {% if file.name|slice:"-4:" == ".pdf" %}
-                      <i class="fas fa-file-pdf text-danger"></i>
-                    {% else %}
-                      <i class="fas fa-file-image text-primary"></i>
-                    {% endif %}
-                  </div>
-                  <div class="file-info">
-                    <h6 class="mb-1">{{ file.name }}</h6>
-                    <small class="text-muted">{{ file.size|filesizeformat }}</small>
-                  </div>
-                  <div class="file-actions">
-                    <button onclick="openFile('{{ file.name }}')" class="btn btn-sm btn-outline-primary">
-                      <i class="fas fa-eye"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Partially Indexed Files -->
-      {% if partially_indexed_files %}
-      <div class="card mt-4" id="partially-indexed-section">
-        <div class="card-header bg-transparent">
-          <h5 class="mb-0">
-            <i class="fas fa-exclamation-circle me-2 text-warning"></i>
-            Partially Indexed Files ({{ stats.partially_indexed_count }})
-          </h5>
-          <small class="text-muted">Files with either name or account number extracted</small>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            {% for file in partially_indexed_files %}
-              <div class="col-md-6 mb-3">
-                <div class="file-result status-warning">
-                  <div class="file-icon">
-                    {% if file.name|slice:"-4:" == ".pdf" %}
-                      <i class="fas fa-file-pdf text-danger"></i>
-                    {% else %}
-                      <i class="fas fa-file-image text-primary"></i>
-                    {% endif %}
-                  </div>
-                  <div class="file-info">
-                    <h6 class="mb-1">{{ file.name }}</h6>
-                    <small class="text-muted">{{ file.size|filesizeformat }}</small>
-                  </div>
-                  <div class="file-actions">
-                    <button onclick="openFile('{{ file.name }}')" class="btn btn-sm btn-outline-primary">
-                      <i class="fas fa-eye"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Failed Files -->
-      {% if failed_files %}
-      <div class="card mt-4" id="failed-section">
-        <div class="card-header bg-transparent">
-          <h5 class="mb-0">
-            <i class="fas fa-times-circle me-2 text-danger"></i>
-            Failed Files ({{ stats.failed_count }})
-          </h5>
-          <small class="text-muted">Files where no data could be extracted</small>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            {% for file in failed_files %}
-              <div class="col-md-6 mb-3">
-                <div class="file-result status-danger">
-                  <div class="file-icon">
-                    {% if file.name|slice:"-4:" == ".pdf" %}
-                      <i class="fas fa-file-pdf text-danger"></i>
-                    {% else %}
-                      <i class="fas fa-file-image text-primary"></i>
-                    {% endif %}
-                  </div>
-                  <div class="file-info">
-                    <h6 class="mb-1">{{ file.name }}</h6>
-                    <small class="text-muted">{{ file.size|filesizeformat }}</small>
-                  </div>
-                  <div class="file-actions">
-                    <button onclick="openFile('{{ file.name }}')" class="btn btn-sm btn-outline-primary">
-                      <i class="fas fa-eye"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- No Files Message -->
-      {% if stats.total_count == 0 %}
-      <div class="card mt-4">
-        <div class="card-body text-center">
-          <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-          <h5>No Files Found</h5>
-          <p class="text-muted">No processed files available yet</p>
-          <a href="{% url 'ocr:upload_file' %}" class="btn btn-primary">
-            <i class="fas fa-upload me-1"></i>Upload Files
-          </a>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- Quick Actions -->
-      <div class="row mt-4">
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-body text-center">
-              <i class="fas fa-upload fa-2x text-primary mb-3"></i>
-              <h5>Upload More Files</h5>
-              <p class="text-muted">Process additional documents</p>
-                    <a href="{% url 'ocr:upload_file' %}" class="btn btn-outline-primary">
-                <i class="fas fa-upload me-1"></i>Upload Files
-              </a>
             </div>
           </div>
         </div>
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-body text-center">
-              <i class="fas fa-sync fa-2x text-success mb-3"></i>
-              <h5>Refresh Files</h5>
-              <p class="text-muted">Check for newly processed files</p>
-              <button onclick="location.reload()" class="btn btn-outline-success">
-                <i class="fas fa-sync me-1"></i>Refresh
+        
+        <!-- Bulk Actions Bar (Hidden by default) -->
+        <div id="bulk-actions-bar" class="bulk-actions-bar" style="display: none;">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="selected-count">
+              <i class="fas fa-check-circle"></i>
+              <span id="selected-count">0</span> files selected
+            </span>
+            <div class="bulk-actions">
+              <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                <i class="fas fa-trash"></i> Delete Selected
+              </button>
+              <button class="btn btn-sm btn-outline-warning" onclick="bulkRetry()">
+                <i class="fas fa-redo"></i> Retry Selected
+              </button>
+              <button class="btn btn-sm btn-outline-info" onclick="bulkDownload()">
+                <i class="fas fa-download"></i> Download Selected
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                <i class="fas fa-times"></i> Clear Selection
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- File Results Grid/List -->
+      <div id="file-results" class="file-results list-view">
+        {% for file in files %}
+          <div class="file-item" data-file-name="{{ file.name }}">
+            <div class="file-checkbox">
+              <input type="checkbox" class="file-select" value="{{ file.name }}" onchange="updateSelection()">
+            </div>
+            
+            <div class="file-icon">
+              {% if file.name|get_file_extension == '.pdf' %}
+                <i class="fas fa-file-pdf text-danger"></i>
+              {% elif file.name|get_file_extension in '.jpg,.jpeg,.png,.gif,.bmp' %}
+                <i class="fas fa-file-image text-success"></i>
+              {% else %}
+                <i class="fas fa-file text-muted"></i>
+              {% endif %}
+            </div>
+            
+            <div class="file-details">
+              <div class="file-header">
+                <h6 class="file-name">{{ file.name }}</h6>
+                <div class="file-status">
+                  {% if file.status == 'fully_indexed' %}
+                    <span class="status-badge status-success">
+                      <i class="fas fa-check-circle"></i> Ready
+                    </span>
+                  {% elif file.status == 'partially_indexed' %}
+                    <span class="status-badge status-warning">
+                      <i class="fas fa-exclamation-triangle"></i> Needs Review
+                    </span>
+                  {% elif file.status == 'failed' %}
+                    <span class="status-badge status-error">
+                      <i class="fas fa-times-circle"></i> Failed
+                    </span>
+                  {% else %}
+                    <span class="status-badge status-processing">
+                      <i class="fas fa-spinner fa-spin"></i> Processing
+                    </span>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="file-meta">
+                <span class="meta-item">
+                  <i class="fas fa-calendar"></i>
+                  {{ file.modified|timestamp_to_date|date:"M d, Y" }}
+                </span>
+                <span class="meta-item">
+                  <i class="fas fa-hdd"></i>
+                  {{ file.size|filesizeformat }}
+                </span>
+              </div>
+            </div>
+            
+            <div class="file-actions">
+              <div class="btn-group-vertical btn-group-sm">
+                <a href="{% url 'ocr:file_preview' file.status file.name %}" class="btn btn-outline-primary" title="Preview File">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <a href="{% url 'ocr:serve_file' file.name %}" download class="btn btn-outline-secondary" title="Download">
+                  <i class="fas fa-download"></i>
+                </a>
+                
+                {% if file.status == 'failed' %}
+                  <button class="btn btn-outline-warning" onclick="retryFile('{{ file.name }}')" title="Retry Processing">
+                    <i class="fas fa-redo"></i>
+                  </button>
+                {% endif %}
+                
+                <button class="btn btn-outline-info" onclick="showFileDetails('{{ file.name }}')" title="More Details">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+                
+                <button class="btn btn-outline-danger" onclick="deleteFile({{ file.id }})" title="Delete File">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      
+      <!-- Load More / Pagination -->
+      {% if has_more %}
+        <div class="text-center mt-4">
+          <button class="btn btn-outline-primary" onclick="loadMoreFiles()">
+            <i class="fas fa-plus-circle"></i> Load More Files
+          </button>
+        </div>
+      {% endif %}
+      
+    {% else %}
+      <!-- Enhanced Empty States -->
+      <div class="empty-state">
+        {% if query or has_filter %}
+          <!-- No Results Found -->
+          <div class="empty-state-content">
+            <div class="empty-icon">
+              <i class="fas fa-search"></i>
+            </div>
+            <h4>No files found</h4>
+            {% if query %}
+              <p>We couldn't find any files matching "<strong>{{ query }}</strong>"</p>
+            {% endif %}
+            {% if has_filter %}
+              <p>Try adjusting your filters or search terms</p>
+            {% endif %}
+            
+            <div class="empty-actions">
+              <a href="{% url 'ocr:search_files' %}" class="btn btn-outline-primary">
+                <i class="fas fa-times"></i> Clear Filters
+              </a>
+              <a href="{% url 'ocr:upload_file' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Upload Files
+              </a>
+            </div>
+            
+            <div class="search-suggestions mt-4">
+              <h6>Search Tips:</h6>
+              <ul class="tips-list">
+                <li>Try using different keywords</li>
+                <li>Check for typos in your search</li>
+                <li>Use partial names or account numbers</li>
+                <li>Try broader search terms</li>
+              </ul>
+            </div>
+          </div>
+        {% else %}
+          <!-- No Files Uploaded Yet -->
+          <div class="empty-state-content">
+            <div class="empty-icon">
+              <i class="fas fa-file-upload"></i>
+            </div>
+            <h4>No files have been uploaded yet</h4>
+            <p>Upload your first document to get started with OCR processing</p>
+            
+            <div class="empty-actions">
+              <a href="{% url 'ocr:upload_file' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-cloud-upload-alt"></i> Upload Your First File
+              </a>
+            </div>
+            
+            <div class="getting-started mt-4">
+              <h6>What you can do:</h6>
+              <div class="feature-list">
+                <div class="feature-item">
+                  <i class="fas fa-file-pdf"></i>
+                  <span>Upload PDF documents</span>
+                </div>
+                <div class="feature-item">
+                  <i class="fas fa-image"></i>
+                  <span>Upload image files</span>
+                </div>
+                <div class="feature-item">
+                  <i class="fas fa-search"></i>
+                  <span>Search extracted content</span>
+                </div>
+                <div class="feature-item">
+                  <i class="fas fa-download"></i>
+                  <span>Download processed files</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- File Details Modal -->
+<div class="modal fade" id="fileDetailsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">File Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="fileDetailsContent">
+        <!-- Content loaded dynamically -->
+      </div>
     </div>
   </div>
 </div>
 
-<script>
-function openFile(fileName) {
-  // Open the file using our Django file serving URL
-  window.open('/file/' + encodeURIComponent(fileName) + '/', '_blank');
-}
-
-function scrollToSection(sectionId) {
-  const element = document.getElementById(sectionId);
-  if (element) {
-    element.scrollIntoView({ 
-      behavior: 'smooth',
-      block: 'start'
-    });
-  }
-}
-
-// Auto-scroll to relevant section when coming from statistics page with filter
-document.addEventListener('DOMContentLoaded', function() {
-  {% if has_filter %}
-    {% if filter_type == 'fully_indexed' %}
-      setTimeout(() => scrollToSection('fully-indexed-section'), 500);
-    {% elif filter_type == 'partially_indexed' %}
-      setTimeout(() => scrollToSection('partially-indexed-section'), 500);
-    {% elif filter_type == 'failed' %}
-      setTimeout(() => scrollToSection('failed-section'), 500);
-    {% endif %}
-  {% endif %}
-});
-
-function toggleAdvancedFilters() {
-  const advancedFilters = document.getElementById('advanced-filters');
-  const isVisible = advancedFilters.style.display !== 'none';
-  
-  if (isVisible) {
-    advancedFilters.style.display = 'none';
-  } else {
-    advancedFilters.style.display = 'block';
-    advancedFilters.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-}
-
-// Auto-submit form when filter dropdown changes
-document.addEventListener('DOMContentLoaded', function() {
-  const filterSelect = document.querySelector('select[name="filter"]');
-  if (filterSelect) {
-    filterSelect.addEventListener('change', function() {
-      // Only auto-submit if it's a basic filter, not when clearing
-      if (this.value !== '') {
-        this.form.submit();
-      }
-    });
-  }
-});
-</script>
-
-<style>
-.clickable-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.clickable-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.section-title {
-  scroll-margin-top: 100px;
-}
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
-}
-
-.file-item {
-  transition: all 0.2s ease;
-}
-
-.file-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  transform: translateX(5px);
-}
-
-/* Enhanced filter styles */
-.form-select, .form-control {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  color: inherit !important;
-}
-
-.form-select:focus, .form-control:focus {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border-color: #0d6efd !important;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
-}
-
-.form-select option {
-  background: #fff;
-  color: #000;
-}
-
-#advanced-filters {
-  animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.btn-group-filter {
-  gap: 0.5rem;
-}
-
-.filter-badge {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
-}
-
-.search-form .input-group-text {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: inherit;
-}
-</style>
 {% endblock %}

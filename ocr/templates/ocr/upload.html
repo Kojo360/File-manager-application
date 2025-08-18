@@ -6,35 +6,116 @@
 {% block page_subtitle %}Upload and process your documents with advanced OCR{% endblock %}
 
 {% block content %}
-<!-- Dashboard Metrics -->
+<!-- First-time User Welcome Banner -->
+{% if statistics.total_files == 0 %}
+<div class="welcome-banner" id="welcomeBanner">
+  <div class="welcome-content">
+    <div class="welcome-icon">
+      <i class="fas fa-rocket"></i>
+    </div>
+    <div class="welcome-text">
+      <h2>Welcome to MerbanTech File Manager!</h2>
+      <p>Transform your documents with powerful OCR technology. Get started in 3 simple steps:</p>
+    </div>
+    <button class="welcome-dismiss" onclick="dismissWelcome()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  
+  <div class="getting-started-steps">
+    <div class="step-item">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <h4>📂 Upload Documents</h4>
+        <p>Drop your PDF or image files in the upload area below</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <h4>🔄 Auto Processing</h4>
+        <p>Our AI-powered OCR extracts text and organizes your files</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <h4>🔍 Search & Browse</h4>
+        <p>Find any document instantly using text search</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="quick-start-actions">
+    <button class="btn btn-primary" onclick="document.getElementById('uploadArea').scrollIntoView({behavior: 'smooth'})">
+      <i class="fas fa-upload"></i> Start Uploading
+    </button>
+    <button class="btn btn-outline-primary" onclick="showTour()">
+      <i class="fas fa-play"></i> Take a Tour
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<!-- Enhanced Dashboard Metrics with Tooltips and Empty States -->
 <div class="metric-row">
-  <div class="metric-card">
+  <div class="metric-card {% if statistics.total_files == 0 %}empty-state{% endif %}" data-tooltip="All uploaded documents will appear here - track your complete file collection">
     <div class="metric-icon">
       <i class="fas fa-upload"></i>
     </div>
     <div class="metric-value">{{ statistics.total_files|default:0 }}</div>
     <div class="metric-label">Total Files</div>
+    {% if statistics.total_files == 0 %}
+      <div class="empty-state-text">Upload your first document to get started</div>
+    {% endif %}
   </div>
-  <div class="metric-card">
-    <div class="metric-icon">
+  
+  <div class="metric-card {% if statistics.fully_indexed == 0 %}empty-state{% endif %}" 
+       data-tooltip="Successfully processed files with complete text extraction will appear here for searching">
+    <div class="metric-icon success">
       <i class="fas fa-check-circle"></i>
     </div>
     <div class="metric-value">{{ statistics.fully_indexed|default:0 }}</div>
     <div class="metric-label">Fully Indexed</div>
+    {% if statistics.fully_indexed == 0 and statistics.total_files > 0 %}
+      <div class="empty-state-text">Processing in progress...</div>
+    {% elif statistics.fully_indexed == 0 %}
+      <div class="empty-state-text">Processed files will appear here</div>
+    {% endif %}
+    {% if statistics.fully_indexed > 0 %}
+      <a href="{% url 'ocr:fully_indexed_files' %}" class="metric-action">View Files</a>
+    {% endif %}
   </div>
-  <div class="metric-card">
-    <div class="metric-icon">
+  
+  <div class="metric-card {% if statistics.partially_indexed == 0 %}empty-state{% endif %}"
+       data-tooltip="Files with partial text extraction will appear here for manual review and optimization">
+    <div class="metric-icon warning">
       <i class="fas fa-exclamation-triangle"></i>
     </div>
     <div class="metric-value">{{ statistics.partially_indexed|default:0 }}</div>
     <div class="metric-label">Partially Indexed</div>
+    {% if statistics.partially_indexed == 0 %}
+      <div class="empty-state-text">Files with partial OCR will appear here</div>
+    {% else %}
+      <a href="{% url 'ocr:partially_indexed_files' %}" class="metric-action">Review Files</a>
+    {% endif %}
   </div>
-  <div class="metric-card">
-    <div class="metric-icon">
+  
+  <div class="metric-card {% if statistics.failed == 0 %}empty-state{% endif %}"
+       data-tooltip="Failed files will appear here for retry with different OCR settings and manual processing">
+    <div class="metric-icon error">
       <i class="fas fa-times-circle"></i>
     </div>
     <div class="metric-value">{{ statistics.failed|default:0 }}</div>
     <div class="metric-label">Failed</div>
+    {% if statistics.failed > 0 %}
+      <div class="retry-actions">
+        <a href="{% url 'ocr:failed_files' %}" class="metric-action">Review Files</a>
+        <button class="retry-btn" onclick="retryAllFailed()">
+          <i class="fas fa-redo"></i> Retry All
+        </button>
+      </div>
+    {% endif %}
   </div>
 </div>
 

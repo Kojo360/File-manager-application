@@ -1,490 +1,886 @@
 {% extends 'ocr/base.html' %}
 {% load ocr_filters %}
 
-{% block title %}File Processing Statistics - File Manager{% endblock %}
+{% block title %}Analytics Dashboard - File Manager{% endblock %}
+
+{% block page_title %}Analytics Dashboard{% endblock %}
+{% block page_subtitle %}Comprehensive file processing insights and performance metrics{% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="row justify-content-center">
-    <div class="col-lg-10">
-      <!-- Statistics Header -->
-      <div class="card">
-        <div class="card-header text-center bg-transparent">
-          <h2 class="mb-0"><i class="fas fa-chart-line me-2"></i>File Processing Statistics</h2>
-          <p class="text-muted">Comprehensive analytics and processing insights</p>
-        </div>
+<div class="dashboard-container">
+  <!-- Quick Stats Overview -->
+  <div class="quick-stats-row">
+    <div class="quick-stat-card">
+      <div class="stat-icon">
+        <i class="fas fa-upload"></i>
       </div>
-
-      <!-- Session Statistics Section -->
-      <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-user-clock me-2"></i>Your Session Statistics</h5>
-          <div>
-            <a href="{% url 'ocr:reset_statistics' %}" class="btn btn-outline-danger btn-sm me-2" 
-               onclick="return confirm('Are you sure you want to reset your session statistics?')">
-              <i class="fas fa-redo me-1"></i>Reset Session
-            </a>
-            <a href="{% url 'ocr:upload_file' %}" class="btn btn-outline-primary btn-sm">
-              <i class="fas fa-upload me-1"></i>Upload More
-            </a>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-primary">{{ session_stats.total_files|default:0 }}</div>
-                <div class="stat-label">Your Total Files</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-success">{{ session_stats.fully_indexed|default:0 }}</div>
-                <div class="stat-label">Fully Indexed</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-warning">{{ session_stats.partially_indexed|default:0 }}</div>
-                <div class="stat-label">Partially Indexed</div>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="stat-item text-center">
-                <div class="stat-number text-danger">{{ session_stats.failed|default:0 }}</div>
-                <div class="stat-label">Failed</div>
-              </div>
-            </div>
-          </div>
+      <div class="stat-content">
+        <div class="stat-number">{{ processing_stats.overall.total_uploaded|default:0 }}</div>
+        <div class="stat-label">Total Processed</div>
+      </div>
+    </div>
+    
+    <div class="quick-stat-card success">
+      <div class="stat-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="stat-content">
+        <div class="stat-number">{{ processing_stats.overall.total_fully_indexed|default:0 }}</div>
+        <div class="stat-label">Fully Indexed</div>
+      </div>
+    </div>
+    
+    <div class="quick-stat-card warning">
+      <div class="stat-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="stat-content">
+        <div class="stat-number">{{ processing_stats.overall.total_partially_indexed|default:0 }}</div>
+        <div class="stat-label">Partial Success</div>
+      </div>
+    </div>
+    
+    <div class="quick-stat-card error">
+      <div class="stat-icon">
+        <i class="fas fa-times-circle"></i>
+      </div>
+      <div class="stat-content">
+        <div class="stat-number">{{ processing_stats.overall.total_failed|default:0 }}</div>
+        <div class="stat-label">Failed</div>
+      </div>
+    </div>
+  </div>
           
-          {% if session_stats.first_upload or session_stats.last_upload %}
-          <hr>
-          <div class="row">
-            <div class="col-md-4">
-              <div class="text-center">
-                <small class="text-muted">
-                  <i class="fas fa-play-circle me-1"></i>
-                  <strong>Session Started:</strong><br>
-                  {% if session_stats.first_upload %}
-                    {{ session_stats.first_upload|date:"M j, Y" }}<br>
-                    <span class="text-primary">{{ session_stats.first_upload|date:"g:i A" }}</span>
-                  {% else %}
-                    No uploads yet
-                  {% endif %}
-                </small>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="text-center">
-                <small class="text-muted">
-                  <i class="fas fa-clock me-1"></i>
-                  <strong>Last Activity:</strong><br>
-                  {% if session_stats.last_upload %}
-                    {{ session_stats.last_upload|date:"M j, Y" }}<br>
-                    <span class="text-info">{{ session_stats.last_upload|date:"g:i A" }}</span>
-                  {% else %}
-                    No activity yet
-                  {% endif %}
-                </small>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="text-center">
-                <small class="text-muted">
-                  <i class="fas fa-hdd me-1"></i>
-                  <strong>Total Size:</strong><br>
-                  {{ session_total_size_formatted|default:"0 B" }}
-                </small>
-              </div>
-            </div>
-          </div>
-          {% endif %}
-          
-          {% if session_stats.success_rate > 0 %}
-          <div class="mt-3">
-            <div class="d-flex justify-content-between">
-              <small><strong>Your Success Rate</strong></small>
-              <small><strong>{{ session_stats.success_rate }}%</strong></small>
-            </div>
-            <div class="progress" style="height: 8px;">
-              <div class="progress-bar bg-gradient bg-success" style="width: {{ session_stats.success_rate }}%"></div>
-            </div>
-          </div>
-          {% endif %}
+  <!-- Performance Dashboard -->
+  <div class="dashboard-grid">
+    <!-- Session Statistics Card -->
+    <div class="dashboard-card">
+      <div class="card-header-content">
+        <h3 class="card-title">
+          <i class="fas fa-user-clock"></i>
+          Your Session
+        </h3>
+        <div class="card-actions">
+          <button onclick="location.reload()" class="btn-icon" title="Refresh">
+            <i class="fas fa-sync"></i>
+          </button>
+          <a href="{% url 'ocr:reset_statistics' %}" 
+             class="btn-icon btn-danger" 
+             title="Reset Session"
+             onclick="return confirm('Reset all session statistics?')">
+            <i class="fas fa-trash"></i>
+          </a>
         </div>
       </div>
-
-      <!-- Global Statistics Header -->
-      <div class="card mt-4">
-        <div class="card-header">
-          <h5 class="mb-0"><i class="fas fa-globe me-2"></i>Global Platform Statistics</h5>
-        </div>
-      </div>
-
-      <!-- Overall Statistics Cards -->
-      <div class="row stats-cards mt-4">
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'ocr:search_files' %}?filter=all'">
-            <div class="stat-icon text-info">
-              <i class="fas fa-upload"></i>
-            </div>
-            <h3 class="mb-1">{{ processing_stats.overall.total_uploaded|default:0 }}</h3>
-            <h6>Total Uploaded</h6>
-            <small class="text-muted">Files Processed</small>
+      
+      <div class="session-metrics">
+        <div class="metric-row">
+          <div class="metric-item">
+            <span class="metric-label">Files Processed</span>
+            <span class="metric-value">{{ session_stats.total_files|default:0 }}</span>
           </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'ocr:search_files' %}?filter=fully_indexed'">
-            <div class="stat-icon text-success">
-              <i class="fas fa-check-circle"></i>
-            </div>
-            <h3 class="mb-1">{{ processing_stats.overall.total_fully_indexed|default:0 }}</h3>
-            <h6>Fully Indexed</h6>
-            <small class="text-muted">Complete Success</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'ocr:search_files' %}?filter=partially_indexed'">
-            <div class="stat-icon text-warning">
-              <i class="fas fa-exclamation-circle"></i>
-            </div>
-            <h3 class="mb-1">{{ processing_stats.overall.total_partially_indexed|default:0 }}</h3>
-            <h6>Partially Indexed</h6>
-            <small class="text-muted">Partial Success</small>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card stat-card text-center clickable-card" onclick="window.location.href='{% url 'ocr:search_files' %}?filter=failed'">
-            <div class="stat-icon text-danger">
-              <i class="fas fa-times-circle"></i>
-            </div>
-            <h3 class="mb-1">{{ processing_stats.overall.total_failed|default:0 }}</h3>
-            <h6>Failed</h6>
-            <small class="text-muted">Processing Failed</small>
-          </div>
-        </div>
-      </div>
-
-      <!-- Performance Metrics -->
-      <div class="row mt-4">
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-header bg-transparent">
-              <h5 class="mb-0">
-                <i class="fas fa-tachometer-alt me-2 text-success"></i>
-                Performance Metrics
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="metric-item">
-                <div class="metric-label">Success Rate</div>
-                <div class="metric-value text-success">{{ success_rate }}%</div>
-                <div class="progress mt-2">
-                  <div class="progress-bar bg-success" style="width: {{ success_rate }}%"></div>
-                </div>
-              </div>
-              
-              <div class="metric-item mt-3">
-                <div class="metric-label">Total Storage Used</div>
-                <div class="metric-value text-info">{{ total_size_formatted }}</div>
-              </div>
-              
-              <div class="metric-item mt-3">
-                <div class="metric-label">Average Processing Success</div>
-                <div class="metric-value text-primary">
-                  {% if processing_stats.overall.total_uploaded > 0 %}
-                    {{ processing_stats.overall.total_fully_indexed|floatformat:0 }} / {{ processing_stats.overall.total_uploaded|floatformat:0 }} files
-                  {% else %}
-                    No data yet
-                  {% endif %}
-                </div>
-              </div>
-            </div>
+          <div class="metric-item">
+            <span class="metric-label">Success Rate</span>
+            <span class="metric-value">{{ session_stats.success_rate|default:0 }}%</span>
           </div>
         </div>
         
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-header bg-transparent">
-              <h5 class="mb-0">
-                <i class="fas fa-chart-pie me-2 text-primary"></i>
-                Processing Breakdown
-              </h5>
-            </div>
-            <div class="card-body">
-              <div class="breakdown-item">
-                <div class="breakdown-label">
-                  <span class="badge bg-success me-2"></span>Fully Indexed
-                </div>
-                <div class="breakdown-value">{{ processing_stats.overall.total_fully_indexed|default:0 }}</div>
-              </div>
-              
-              <div class="breakdown-item">
-                <div class="breakdown-label">
-                  <span class="badge bg-warning me-2"></span>Partially Indexed
-                </div>
-                <div class="breakdown-value">{{ processing_stats.overall.total_partially_indexed|default:0 }}</div>
-              </div>
-              
-              <div class="breakdown-item">
-                <div class="breakdown-label">
-                  <span class="badge bg-danger me-2"></span>Failed Processing
-                </div>
-                <div class="breakdown-value">{{ processing_stats.overall.total_failed|default:0 }}</div>
-              </div>
-              
-              <div class="breakdown-item">
-                <div class="breakdown-label">
-                  <span class="badge bg-info me-2"></span>Total Processed
-                </div>
-                <div class="breakdown-value">{{ processing_stats.overall.total_processed|default:0 }}</div>
-              </div>
-            </div>
+        {% if session_stats.success_rate > 0 %}
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ session_stats.success_rate }}%"></div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <div class="session-details">
+          {% if session_stats.first_upload %}
+          <div class="detail-item">
+            <i class="fas fa-play-circle"></i>
+            <span>Started: {{ session_stats.first_upload|date:"M j, Y g:i A" }}</span>
+          </div>
+          {% endif %}
+          
+          {% if session_stats.last_upload %}
+          <div class="detail-item">
+            <i class="fas fa-clock"></i>
+            <span>Last: {{ session_stats.last_upload|timesince }} ago</span>
+          </div>
+          {% endif %}
+          
+          <div class="detail-item">
+            <i class="fas fa-hdd"></i>
+            <span>{{ session_total_size_formatted|default:"0 B" }}</span>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Daily Activity Chart -->
-      {% if daily_stats %}
-      <div class="card mt-4">
-        <div class="card-header bg-transparent">
-          <h5 class="mb-0">
-            <i class="fas fa-calendar-alt me-2 text-info"></i>
-            Daily Processing Activity (Last 30 Days)
-          </h5>
-          <small class="text-muted">Track your daily file processing trends</small>
+    <!-- Performance Metrics Card -->
+    <div class="dashboard-card">
+      <div class="card-header-content">
+        <h3 class="card-title">
+          <i class="fas fa-tachometer-alt"></i>
+          Performance
+        </h3>
+      </div>
+      
+      <div class="performance-metrics">
+        <div class="performance-item">
+          <div class="performance-label">Global Success Rate</div>
+          <div class="performance-value">{{ success_rate|default:0 }}%</div>
+          <div class="performance-bar">
+            <div class="bar-fill success" style="width: {{ success_rate|default:0 }}%"></div>
+          </div>
         </div>
-        <div class="card-body">
-          <div class="row">
-            {% for day_stat in daily_stats %}
-              <div class="col-md-4 col-lg-3 mb-3">
-                <div class="daily-stat-card">
-                  <h6 class="mb-2">{{ day_stat.date|date:"M d, Y" }}</h6>
-                  
-                  <div class="daily-numbers">
-                    <div class="daily-number success">
-                      <i class="fas fa-check-circle"></i>
-                      <span>{{ day_stat.fully_indexed }}</span>
-                    </div>
-                    <div class="daily-number warning">
-                      <i class="fas fa-exclamation-circle"></i>
-                      <span>{{ day_stat.partially_indexed }}</span>
-                    </div>
-                    <div class="daily-number danger">
-                      <i class="fas fa-times-circle"></i>
-                      <span>{{ day_stat.failed }}</span>
-                    </div>
-                  </div>
-                  
-                  <div class="daily-total">
-                    <strong>{{ day_stat.total_uploaded }} uploaded</strong>
-                  </div>
-                  
-                  {% if day_stat.total_uploaded > 0 %}
-                    <div class="daily-success-rate">
-                      Success: {{ day_stat.success_rate }}%
-                    </div>
-                  {% endif %}
-                  
-                  {% if day_stat.total_file_size > 0 %}
-                    <small class="text-muted">{{ day_stat.total_file_size|filesizeformat }}</small>
-                  {% endif %}
-                </div>
-              </div>
-            {% endfor %}
+        
+        <div class="performance-item">
+          <div class="performance-label">Storage Used</div>
+          <div class="performance-value">{{ total_size_formatted|default:"0 B" }}</div>
+        </div>
+        
+        <div class="performance-item">
+          <div class="performance-label">Average Processing</div>
+          <div class="performance-value">
+            {% if processing_stats.overall.total_uploaded > 0 %}
+              {{ processing_stats.overall.total_fully_indexed|floatformat:0 }}/{{ processing_stats.overall.total_uploaded|floatformat:0 }}
+            {% else %}
+              0/0
+            {% endif %}
           </div>
         </div>
       </div>
-      {% endif %}
+    </div>
 
-      <!-- Recent Processing Activity -->
+    <!-- Recent Activity Card -->
+    <div class="dashboard-card activity-card">
+      <div class="card-header-content">
+        <h3 class="card-title">
+          <i class="fas fa-history"></i>
+          Recent Activity
+        </h3>
+        <a href="{% url 'ocr:search_files' %}" class="btn-outline-small">
+          <i class="fas fa-external-link-alt"></i>
+          View All
+        </a>
+      </div>
+      
       {% if recent_activity %}
-      <div class="card mt-4">
-        <div class="card-header bg-transparent">
-          <h5 class="mb-0">
-            <i class="fas fa-history me-2 text-primary"></i>
-            Recent Processing Activity
-          </h5>
-          <small class="text-muted">Latest 50 file processing events</small>
-        </div>
-        <div class="card-body">
-          <div class="activity-timeline">
-            {% for activity in recent_activity %}
-              <div class="activity-item">
-                <div class="activity-icon">
-                  {% if activity.status == 'fully_indexed' %}
-                    <i class="fas fa-check-circle text-success"></i>
-                  {% elif activity.status == 'partially_indexed' %}
-                    <i class="fas fa-exclamation-circle text-warning"></i>
-                  {% elif activity.status == 'failed' %}
-                    <i class="fas fa-times-circle text-danger"></i>
-                  {% else %}
-                    <i class="fas fa-upload text-info"></i>
-                  {% endif %}
-                </div>
-                <div class="activity-content">
-                  <div class="activity-title">{{ activity.original_filename }}</div>
-                  <div class="activity-status">
-                    Status: <span class="badge bg-{{ activity.status|status_color }}">{{ activity.get_status_display }}</span>
-                    {% if activity.final_filename and activity.final_filename != activity.original_filename %}
-                      → <strong>{{ activity.final_filename }}</strong>
-                    {% endif %}
-                  </div>
-                  <div class="activity-details">
-                    {% if activity.extracted_name %}
-                      <span class="detail-item">
-                        <i class="fas fa-user me-1"></i>{{ activity.extracted_name }}
-                      </span>
-                    {% endif %}
-                    {% if activity.extracted_account %}
-                      <span class="detail-item">
-                        <i class="fas fa-credit-card me-1"></i>{{ activity.extracted_account }}
-                      </span>
-                    {% endif %}
-                  </div>
-                  <div class="activity-time">
-                    <i class="fas fa-clock me-1"></i>{{ activity.processed_at|timesince }} ago
-                    {% if activity.file_size %}
-                      <span class="ms-3"><i class="fas fa-file me-1"></i>{{ activity.file_size|filesizeformat }}</span>
-                    {% endif %}
-                  </div>
-                  {% if activity.error_message %}
-                    <div class="activity-error">
-                      <i class="fas fa-exclamation-triangle me-1"></i>{{ activity.error_message|truncatechars:100 }}
-                    </div>
-                  {% endif %}
-                </div>
-              </div>
-            {% endfor %}
+      <div class="activity-timeline">
+        {% for activity in recent_activity|slice:":8" %}
+        <div class="activity-item">
+          <div class="activity-icon">
+            {% if activity.status == 'fully_indexed' %}
+              <i class="fas fa-check-circle text-success"></i>
+            {% elif activity.status == 'partially_indexed' %}
+              <i class="fas fa-exclamation-circle text-warning"></i>
+            {% elif activity.status == 'failed' %}
+              <i class="fas fa-times-circle text-danger"></i>
+            {% else %}
+              <i class="fas fa-upload text-info"></i>
+            {% endif %}
+          </div>
+          <div class="activity-content">
+            <div class="activity-title">{{ activity.original_filename|truncatechars:40 }}</div>
+            <div class="activity-meta">
+              <span class="status-badge {{ activity.status }}">{{ activity.get_status_display }}</span>
+              <span class="activity-time">{{ activity.processed_at|timesince }} ago</span>
+            </div>
+            {% if activity.extracted_name %}
+            <div class="activity-details">
+              <i class="fas fa-user"></i> {{ activity.extracted_name|truncatechars:30 }}
+            </div>
+            {% endif %}
           </div>
         </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-activity">
+        <i class="fas fa-clock"></i>
+        <p>No recent activity</p>
+        <a href="{% url 'ocr:upload_file' %}" class="btn-primary-small">Upload Files</a>
       </div>
       {% endif %}
+    </div>
+  </div>
 
-      <!-- Action Buttons -->
-      <div class="row mt-4">
-        <div class="col-md-4">
-          <div class="card">
-            <div class="card-body text-center">
-              <i class="fas fa-upload fa-2x text-primary mb-3"></i>
-              <h5>Upload More Files</h5>
-              <p class="text-muted">Process additional documents</p>
-              <a href="{% url 'ocr:upload_file' %}" class="btn btn-outline-primary">
-                <i class="fas fa-upload me-1"></i>Upload Files
-              </a>
+  <!-- Daily Statistics -->
+  {% if daily_stats %}
+  <div class="daily-stats-section">
+    <div class="section-header">
+      <h3><i class="fas fa-calendar-alt"></i> Daily Activity Trends</h3>
+      <p>Processing activity over the last 30 days</p>
+    </div>
+    
+    <div class="daily-stats-grid">
+      {% for day_stat in daily_stats|slice:":14" %}
+      <div class="daily-stat-card">
+        <div class="daily-date">
+          <span class="day">{{ day_stat.date|date:"d" }}</span>
+          <span class="month">{{ day_stat.date|date:"M" }}</span>
+        </div>
+        
+        <div class="daily-metrics">
+          <div class="daily-total">{{ day_stat.total_uploaded }} files</div>
+          
+          <div class="daily-breakdown">
+            <div class="breakdown-item success">
+              <i class="fas fa-check"></i>
+              <span>{{ day_stat.fully_indexed }}</span>
+            </div>
+            <div class="breakdown-item warning">
+              <i class="fas fa-exclamation"></i>
+              <span>{{ day_stat.partially_indexed }}</span>
+            </div>
+            <div class="breakdown-item error">
+              <i class="fas fa-times"></i>
+              <span>{{ day_stat.failed }}</span>
             </div>
           </div>
-        </div>
-        <div class="col-md-4">
-          <div class="card">
-            <div class="card-body text-center">
-              <i class="fas fa-search fa-2x text-success mb-3"></i>
-              <h5>Browse Files</h5>
-              <p class="text-muted">Search processed documents</p>
-              <a href="{% url 'ocr:search_files' %}" class="btn btn-outline-success">
-                <i class="fas fa-search me-1"></i>Browse Files
-              </a>
-            </div>
+          
+          {% if day_stat.total_uploaded > 0 %}
+          <div class="daily-success-rate">
+            {{ day_stat.success_rate }}% success
           </div>
+          {% endif %}
         </div>
-        <div class="col-md-4">
-          <div class="card">
-            <div class="card-body text-center">
-              <i class="fas fa-sync fa-2x text-info mb-3"></i>
-              <h5>Refresh Data</h5>
-              <p class="text-muted">Update statistics</p>
-              <button onclick="location.reload()" class="btn btn-outline-info">
-                <i class="fas fa-sync me-1"></i>Refresh Stats
-              </button>
-            </div>
-          </div>
-        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Quick Actions -->
+  <div class="quick-actions-section">
+    <div class="action-card" onclick="window.location.href='{% url 'ocr:upload_file' %}'">
+      <div class="action-icon">
+        <i class="fas fa-upload"></i>
+      </div>
+      <div class="action-content">
+        <h4>Upload Files</h4>
+        <p>Process new documents</p>
+      </div>
+    </div>
+    
+    <div class="action-card" onclick="window.location.href='{% url 'ocr:search_files' %}'">
+      <div class="action-icon">
+        <i class="fas fa-search"></i>
+      </div>
+      <div class="action-content">
+        <h4>Browse Files</h4>
+        <p>Search your documents</p>
+      </div>
+    </div>
+    
+    <div class="action-card" onclick="window.location.href='{% url 'ocr:fully_indexed_files' %}'">
+      <div class="action-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="action-content">
+        <h4>View Processed</h4>
+        <p>Successfully indexed files</p>
       </div>
     </div>
   </div>
 </div>
 
 <style>
-.clickable-card {
+/* Analytics Dashboard Styling */
+.dashboard-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Quick Stats Row */
+.quick-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.quick-stat-card {
+  background: rgba(51, 65, 85, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 25px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.3s ease;
   cursor: pointer;
+}
+
+.quick-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.3);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.quick-stat-card.success { border-left: 4px solid #22c55e; }
+.quick-stat-card.warning { border-left: 4px solid #f59e0b; }
+.quick-stat-card.error { border-left: 4px solid #ef4444; }
+
+.quick-stat-card .stat-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.quick-stat-card.success .stat-icon {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.quick-stat-card.warning .stat-icon {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.quick-stat-card.error .stat-icon {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-number {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.dashboard-card {
+  background: rgba(51, 65, 85, 0.6);
+  backdrop-filter: blur(25px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  padding: 25px;
   transition: all 0.3s ease;
 }
 
-.clickable-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-  background: rgba(255, 255, 255, 0.2);
+.card-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
 }
 
-.stat-card {
+.card-title {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-title i {
+  color: #3b82f6;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
-  padding: 1.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
 }
 
-.stat-icon {
-  font-size: 2rem;
-  margin-bottom: 1rem;
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: translateY(-1px);
 }
 
-.metric-item, .breakdown-item {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.btn-icon.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
-.daily-stat-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 1rem;
-  text-align: center;
+/* Session Metrics */
+.session-metrics {
+  color: white;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.metric-value {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.progress-container {
+  margin: 15px 0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.session-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+.detail-item i {
+  width: 16px;
+  color: #3b82f6;
+}
+
+/* Performance Metrics */
+.performance-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.performance-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.performance-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.performance-value {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.performance-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.bar-fill.success {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+/* Activity Card */
+.activity-card {
+  grid-column: 1 / -1;
 }
 
 .activity-timeline {
-  max-height: 500px;
+  max-height: 400px;
   overflow-y: auto;
+  padding-right: 10px;
+}
+
+.activity-timeline::-webkit-scrollbar {
+  width: 4px;
+}
+
+.activity-timeline::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.1);
+  border-radius: 2px;
+}
+
+.activity-timeline::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 2px;
 }
 
 .activity-item {
   display: flex;
-  padding: 1rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 15px;
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
 }
 
 .activity-icon {
-  margin-right: 1rem;
-  font-size: 1.2rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .activity-content {
   flex: 1;
+  min-width: 0;
 }
 
 .activity-title {
-  font-weight: bold;
-  margin-bottom: 0.5rem;
+  color: white;
+  font-weight: 500;
+  margin-bottom: 5px;
+  word-break: break-word;
 }
 
-.activity-details {
-  margin: 0.5rem 0;
+.activity-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 5px;
 }
 
-.detail-item {
-  margin-right: 1rem;
-  font-size: 0.9rem;
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.fully_indexed {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.status-badge.partially_indexed {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.status-badge.failed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 .activity-time {
-  font-size: 0.8rem;
-  color: #6c757d;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
 }
 
-.activity-error {
-  color: #dc3545;
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
+.activity-details {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.empty-activity {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.empty-activity i {
+  font-size: 48px;
+  margin-bottom: 15px;
+  color: rgba(148, 163, 184, 0.4);
+}
+
+.empty-activity p {
+  margin-bottom: 20px;
+}
+
+/* Daily Statistics */
+.daily-stats-section {
+  margin-bottom: 30px;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.section-header h3 {
+  color: white;
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.section-header p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+}
+
+.daily-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 15px;
+}
+
+.daily-stat-card {
+  background: rgba(51, 65, 85, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.daily-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.daily-date {
+  margin-bottom: 10px;
+}
+
+.daily-date .day {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
+.daily-date .month {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.daily-total {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.daily-breakdown {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.breakdown-item.success { color: #22c55e; }
+.breakdown-item.warning { color: #f59e0b; }
+.breakdown-item.error { color: #ef4444; }
+
+.daily-success-rate {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Quick Actions */
+.quick-actions-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.action-card {
+  background: rgba(51, 65, 85, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  padding: 25px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.action-card:hover {
+  transform: translateY(-3px);
+  border-color: #3b82f6;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+}
+
+.action-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 15px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin: 0 auto 15px;
+}
+
+.action-content h4 {
+  color: white;
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
+.action-content p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin: 0;
+}
+
+.btn-outline-small, .btn-primary-small {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.btn-outline-small {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+  background: transparent;
+}
+
+.btn-outline-small:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.btn-primary-small {
+  background: #3b82f6;
+  color: white;
+  border: 1px solid #3b82f6;
+}
+
+.btn-primary-small:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 15px;
+  }
+  
+  .quick-stats-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .metric-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .daily-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+  
+  .quick-actions-section {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .card-header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  
+  .activity-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
 }
 </style>
 {% endblock %}

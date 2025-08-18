@@ -19,6 +19,13 @@ except ImportError:
         return file_path
 
 from .models import ScannedFile, FileProcessingLog, ProcessingStatistics
+from django.db.models import Count, Q
+from datetime import datetime, timedelta
+from django.core.files.storage import default_storage
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+import json
 from django.db.models import Q
 import os
 
@@ -392,9 +399,18 @@ def failed_files(request):
     return render(request, 'ocr/file_status.html', context)
 
 def search_files(request):
+    print(f"=== SEARCH_FILES VIEW CALLED ===")
+    print(f"Request method: {request.method}")
+    print(f"Request path: {request.path}")
+    print(f"Request GET params: {request.GET}")
+    
     query = request.GET.get('q', '').strip()
     filter_type = request.GET.get('filter', '').strip()
     status_filter = request.GET.get('status', '').strip()  # New status parameter
+    
+    print(f"Search query: '{query}'")
+    print(f"Filter type: '{filter_type}'")
+    print(f"Status filter: '{status_filter}'")
     
     # Advanced filter parameters
     min_size = request.GET.get('min_size', '').strip()
@@ -566,7 +582,25 @@ def search_files(request):
         date__gte=seven_days_ago
     ).order_by('-date')
     
+    # Combine all files for the template
+    all_files = fully_indexed_files + partially_indexed_files + failed_files
+    
+    print(f"=== SEARCH RESULTS DEBUG ===")
+    print(f"Fully indexed files: {len(fully_indexed_files)}")
+    print(f"Partially indexed files: {len(partially_indexed_files)}")
+    print(f"Failed files: {len(failed_files)}")
+    print(f"Total files found: {len(all_files)}")
+    
+    if all_files:
+        print("Sample file structure:")
+        sample_file = all_files[0]
+        print(f"File keys: {sample_file.keys()}")
+        print(f"Sample file: {sample_file}")
+    else:
+        print("No files found!")
+    
     return render(request, 'ocr/search.html', {
+        'files': all_files,  # Add combined files list
         'fully_indexed_files': fully_indexed_files,
         'partially_indexed_files': partially_indexed_files,
         'failed_files': failed_files,
@@ -581,6 +615,7 @@ def search_files(request):
         'status_filter': status_filter,
         'has_filter': bool(filter_type or status_filter or min_size or max_size or date_from or date_to or has_name or has_account),
         'has_advanced_filters': bool(min_size or max_size or date_from or date_to or has_name or has_account),
+        'has_any_filters': bool(query or filter_type or status_filter or min_size or max_size or date_from or date_to or has_name or has_account),
     })
 
 def serve_processed_file(request, file_path):
@@ -663,6 +698,57 @@ def statistics_view(request):
             processing_stats['overall'].get('total_size', 0) or 0
         )
     })
+
+
+def bulk_operations_view(request):
+    """Bulk file operations interface"""
+    return render(request, 'ocr/bulk_operations.html')
+
+
+def file_preview_view(request, status_type, filename):
+    """Enhanced file preview with OCR analysis"""
+    # Get the absolute paths to the directories
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+    directory = os.path.join(BASE_DIR, status_type)
+    file_path = os.path.join(directory, filename)
+    
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        raise Http404("File not found")
+    
+    # Get file information
+    file_stat = os.stat(file_path)
+    file_extension = os.path.splitext(filename)[1].lower()
+    
+    # Get processing log information
+    log_entry = FileProcessingLog.objects.filter(
+        original_filename=filename
+    ).first()
+    
+    # Prepare file information
+    file_info = {
+        'name': filename,
+        'status': status_type,
+        'size': file_stat.st_size,
+        'size_formatted': get_file_size_formatted(file_stat.st_size),
+        'modified': file_stat.st_mtime,
+        'path': f"{status_type}/{filename}",  # For URL generation
+        'extension': file_extension,
+        'can_preview': file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.pdf'],
+        'preview_type': 'image' if file_extension in ['.jpg', '.jpeg', '.png', '.gif', '.bmp'] else 'pdf' if file_extension == '.pdf' else 'unknown'
+    }
+    
+    # Add extracted information if available
+    if log_entry:
+        file_info.update({
+            'extracted_name': log_entry.extracted_name,
+            'extracted_account': log_entry.extracted_account,
+            'processing_date': log_entry.processed_at,
+            'error_message': log_entry.error_message
+        })
+    
+    return render(request, 'ocr/file_preview.html', {
+        'file': file_info
+    })
 def search_view(request):
     query = request.GET.get('q', '')
     results = []
@@ -691,3 +777,66 @@ def search_view(request):
 
 upload_dir = r'D:\File-manager-application\ocr\incoming-scan'
 os.makedirs(upload_dir, exist_ok=True)
+
+@login_required
+def user_profile_view(request):
+    """Display user profile page with statistics and settings"""
+    # Calculate user statistics
+    user_files = FileProcessingLog.objects.filter(user=request.user) if request.user.is_authenticated else FileProcessingLog.objects.none()
+    
+    user_stats = {
+        'total_files': user_files.count(),
+        'success_rate': 0,
+        'days_active': 0,
+    }
+    
+    if user_files.exists():
+        successful_files = user_files.filter(status='completed').count()
+        user_stats['success_rate'] = round((successful_files / user_stats['total_files']) * 100) if user_stats['total_files'] > 0 else 0
+        
+        # Calculate days active (days since first file processed)
+        first_file = user_files.order_by('created_at').first()
+        if first_file:
+            days_diff = (datetime.now().date() - first_file.created_at.date()).days
+            user_stats['days_active'] = max(1, days_diff)
+    
+    context = {
+        'user_stats': user_stats,
+    }
+    
+    return render(request, 'ocr/user_profile.html', context)
+
+@login_required
+def update_profile_view(request):
+    """Handle profile updates"""
+    if request.method == 'POST':
+        user = request.user
+        user.first_name = request.POST.get('first_name', '')
+        user.last_name = request.POST.get('last_name', '')
+        user.email = request.POST.get('email', '')
+        user.save()
+        
+        messages.success(request, 'Profile updated successfully!')
+        return redirect('ocr:user_profile')
+    
+    return redirect('ocr:user_profile')
+
+@login_required
+def change_password_view(request):
+    """Handle password changes"""
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # Important for keeping user logged in
+            messages.success(request, 'Password changed successfully!')
+            return redirect('ocr:user_profile')
+        else:
+            for error in form.errors.values():
+                messages.error(request, error[0])
+    
+    return redirect('ocr:user_profile')
+
+def api_documentation_view(request):
+    """Display API documentation page"""
+    return render(request, 'ocr/api_documentation.html')
