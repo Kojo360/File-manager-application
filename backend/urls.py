@@ -32,7 +32,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),  # login/logout
     path('health/', health_check, name='health_check'),  # Health check endpoint
+    # Include OCR app URLs twice: once without namespace for legacy templates
+    # that use bare names, and again under the 'ocr' namespace for namespaced templates.
     path('', include('ocr.urls')),
+    path('', include(('ocr.urls', 'ocr'), namespace='ocr')),
 ]
 
 

@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+# Allow reversing as both namespaced and non-namespaced. Django will
+# register the app namespace when included with namespace='ocr'.
 app_name = 'ocr'
 
 urlpatterns = [

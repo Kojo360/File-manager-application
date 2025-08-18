@@ -6,7 +6,7 @@
   <div class="container">
     <h2>Search Processed Files</h2>
 
-    <form method="get" action="{% url 'search' %}" class="search-form">
+  <form method="get" action="{% url 'ocr:search_files' %}" class="search-form">
       <input type="text" name="q" placeholder="Enter filename or content…" value="{{ query|default:'' }}">
       <button type="submit">Search</button>
     </form>
