@@ -8,7 +8,7 @@ app_name = 'ocr'
 
 urlpatterns = [
     # Main application views
-    path('', views.upload_file, name='upload_file'),
+    path('upload/', views.upload_file, name='upload_file'),
     path('test/', views.test_view, name='test_view'),
     path('debug-ocr/', views.debug_ocr, name='debug_ocr'),
     path('search/', views.search_files, name='search_files'),

@@ -5,6 +5,7 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.utils.encoding import smart_str
 from .forms import FileUploadForm
 from .utils import log_file_processing, get_processing_statistics, get_file_size_formatted, get_session_statistics, reset_session_statistics
+from core.auth_decorators import admin_required, regular_user_allowed, public_access_allowed
 import sys
 import os
 
@@ -106,6 +107,7 @@ def debug_ocr(request):
     return HttpResponse(html)
 
 
+@admin_required
 def upload_file(request):
     """Main upload view with full OCR functionality"""
     try:
@@ -248,6 +250,7 @@ def upload_file(request):
         return HttpResponse(f"<h1>Upload Error</h1><p>{str(e)}</p><p><a href='/test/'>Test page</a> | <a href='/search/'>Search</a></p>")
 
 
+@regular_user_allowed
 def fully_indexed_files(request):
     """View for fully indexed files only"""
     query = request.GET.get('q', '').strip()
@@ -298,6 +301,7 @@ def fully_indexed_files(request):
     
     return render(request, 'ocr/file_status.html', context)
 
+@regular_user_allowed
 def partially_indexed_files(request):
     """View for partially indexed files only"""
     query = request.GET.get('q', '').strip()
@@ -348,6 +352,7 @@ def partially_indexed_files(request):
     
     return render(request, 'ocr/file_status.html', context)
 
+@regular_user_allowed
 def failed_files(request):
     """View for failed files only"""
     query = request.GET.get('q', '').strip()
@@ -398,6 +403,7 @@ def failed_files(request):
     
     return render(request, 'ocr/file_status.html', context)
 
+@regular_user_allowed
 def search_files(request):
     print(f"=== SEARCH_FILES VIEW CALLED ===")
     print(f"Request method: {request.method}")
@@ -618,6 +624,7 @@ def search_files(request):
         'has_any_filters': bool(query or filter_type or status_filter or min_size or max_size or date_from or date_to or has_name or has_account),
     })
 
+@public_access_allowed
 def serve_processed_file(request, file_path):
     """Serve processed files from the three processing directories"""
     # Decode the file path
@@ -646,6 +653,7 @@ def serve_processed_file(request, file_path):
     
     raise Http404("File not found")
 
+@admin_required
 def reset_statistics(request):
     """Reset session statistics"""
     try:
@@ -664,6 +672,7 @@ def reset_statistics(request):
     return redirect('ocr:upload_file')
 
 
+@admin_required
 def statistics_view(request):
     """Detailed statistics view with session-based stats"""
     # Ensure session exists
@@ -700,6 +709,7 @@ def statistics_view(request):
     })
 
 
+@admin_required
 def bulk_operations_view(request):
     """Bulk file operations interface"""
     return render(request, 'ocr/bulk_operations.html')

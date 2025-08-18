@@ -1,0 +1,24 @@
+# Railway Deployment Configuration
+services:
+  - name: file-manager-app
+    source:
+      repo: Kojo360/File-manager-application
+    envs:
+      - DJANGO_SETTINGS_MODULE=backend.settings_production
+      - DEBUG=false
+      - SECRET_KEY=${{ secrets.SECRET_KEY }}
+      - DATABASE_URL=${{ RAILWAY_DATABASE_URL }}
+    build:
+      commands:
+        - pip install -r requirements.txt
+        - python manage.py collectstatic --noinput
+        - python manage.py migrate
+    deploy:
+      startCommand: gunicorn backend.wsgi --log-file -
+      healthcheckPath: /health/
+    variables:
+      - PYTHONPATH=/app
+      - PORT=8000
+    volumes:
+      - /app/media
+      - /app/staticfiles

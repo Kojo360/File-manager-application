@@ -1,0 +1,165 @@
+{% extends 'ocr/base.html' %}
+
+{% block title %}User Management - Admin{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>👥 User Management</h3>
+                    <p class="text-muted">Manage system users and their permissions</p>
+                </div>
+                
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="stat-card bg-primary">
+                                <h4>{{ total_users }}</h4>
+                                <p>Total Users</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card bg-success">
+                                <h4>{{ admin_users }}</h4>
+                                <p>Admin Users</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card bg-info">
+                                <h4>{{ regular_users }}</h4>
+                                <p>Regular Users</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'core:create_user' %}" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus"></i> Add User
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Last Login</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ user.username }}</strong>
+                                        {% if user.is_superuser %}
+                                            <span class="badge badge-danger">Superuser</span>
+                                        {% elif user.is_staff %}
+                                            <span class="badge badge-warning">Staff</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.get_full_name|default:"—" }}</td>
+                                    <td>{{ user.email|default:"—" }}</td>
+                                    <td>
+                                        {% if user.is_superuser %}
+                                            <span class="text-danger">👑 Super Admin</span>
+                                        {% elif user.is_staff %}
+                                            <span class="text-warning">🛡️ Admin</span>
+                                        {% else %}
+                                            <span class="text-info">👤 Regular User</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.last_login %}
+                                            {{ user.last_login|date:"M d, Y H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="/admin/auth/user/{{ user.id }}/" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                            {% if user != request.user %}
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    onclick="confirmDelete('{{ user.username }}')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">
+                                        No users found.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stat-card {
+    padding: 20px;
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.stat-card h4 {
+    font-size: 2rem;
+    margin-bottom: 5px;
+}
+
+.stat-card p {
+    margin: 0;
+    opacity: 0.8;
+}
+
+.bg-primary { background: #3498db; }
+.bg-success { background: #27ae60; }
+.bg-info { background: #17a2b8; }
+.bg-warning { background: #f39c12; }
+.bg-danger { background: #e74c3c; }
+
+.table th {
+    background: #f8f9fa;
+    border-top: none;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+
+<script>
+function confirmDelete(username) {
+    if (confirm('Are you sure you want to delete user "' + username + '"?')) {
+        // Implement delete functionality
+        alert('Delete functionality would be implemented here.');
+    }
+}
+</script>
+{% endblock %}

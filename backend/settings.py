@@ -53,14 +53,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders',  # Add CORS headers
     'rest_framework',
     'core',
     'ocr',  # connects ocr app
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Add CORS middleware
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -178,14 +176,6 @@ REST_FRAMEWORK = {
 # After STATIC_URL...
 LOGIN_REDIRECT_URL = '/'        # where to go after a successful login
 LOGOUT_REDIRECT_URL = '/'       # where to go after logging out
-
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    # Add your frontend URLs here
-]
 
 # CSRF settings for production
 CSRF_TRUSTED_ORIGINS = [

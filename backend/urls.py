@@ -23,6 +23,8 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
+from django.conf import settings
+from django.conf.urls.static import static
 
 def health_check(request):
     """Simple health check endpoint for Railway - just return 200 OK"""
@@ -30,11 +32,17 @@ def health_check(request):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('django.contrib.auth.urls')),  # login/logout
     path('health/', health_check, name='health_check'),  # Health check endpoint
-    # Include OCR app URLs with namespace
-    path('', include(('ocr.urls', 'ocr'), namespace='ocr')),
+    
+    # Main landing page and core features
+    path('', include(('core.urls', 'core'), namespace='core')),
+    
+    # Core OCR app - authenticated features
+    path('app/', include(('ocr.urls', 'ocr'), namespace='ocr')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
 if settings.DEBUG:
