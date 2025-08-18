@@ -11,7 +11,7 @@ echo 🗄️ Running migrations...
 python manage.py migrate
 
 echo 👤 Setting up admin user...
-python manage.py shell -c "from django.contrib.auth.models import User; User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', 'admin@filemanager.app', 'admin123')"
+python manage.py create_admin
 
 echo ✅ Deployment complete!
 echo 🌐 Application ready for production!

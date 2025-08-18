@@ -24,6 +24,12 @@ def main():
                       check=True)
         print("✅ Migrations completed successfully")
         
+        # Create admin user
+        print("=== Creating admin user ===")
+        subprocess.run([sys.executable, 'manage.py', 'create_admin'], 
+                      check=True)
+        print("✅ Admin user created successfully")
+        
         # Start gunicorn
         print(f"=== Starting gunicorn on 0.0.0.0:{port} ===")
         

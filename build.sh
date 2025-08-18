@@ -27,4 +27,7 @@ python manage.py collectstatic --no-input --clear
 echo "🗄️ Running database migrations..."
 python manage.py migrate --noinput
 
+echo "👤 Creating admin user..."
+python manage.py create_admin
+
 echo "✅ Build completed successfully!"

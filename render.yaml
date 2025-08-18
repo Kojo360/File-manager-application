@@ -1,15 +1,18 @@
 services:
   - type: web
     name: file-manager-app
-    env: docker
+    env: python
     plan: free
     region: oregon
-    dockerfilePath: ./Dockerfile
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate && python manage.py create_admin
+    startCommand: gunicorn backend.wsgi
     autoDeploy: true
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: false
+      - key: DJANGO_SETTINGS_MODULE
+        value: backend.settings_production
       - key: WEB_CONCURRENCY
         value: 2
