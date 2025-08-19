@@ -6,7 +6,13 @@
 {% block page_subtitle %}Manage your account settings and preferences{% endblock %}
 
 {% block content %}
-<div class="profile-container">
+<div class="content-container">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  <div class="profile-container">
   <!-- Profile Header -->
   <div class="profile-header">
     <div class="avatar-section">
@@ -59,7 +65,7 @@
           Personal Information
         </h3>
         
-        <form class="settings-form" method="post" action="{% url 'ocr:update_profile' %}">
+  <form class="settings-form" method="post" action="{% url 'ocr:update_profile' %}">
           {% csrf_token %}
           <div class="form-row">
             <div class="form-group">
@@ -83,36 +89,14 @@
             <small class="form-help">Username cannot be changed</small>
           </div>
           
-          <button type="submit" class="btn-primary">
+          <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i>
             Save Changes
           </button>
         </form>
       </div>
     </div>
-              <option value="grid">Grid View</option>
-              <option value="list" selected>List View</option>
-              <option value="detail">Detail View</option>
-            </select>
-          </div>
-          
-          <div class="form-group">
-            <label for="files_per_page">Files Per Page</label>
-            <select id="files_per_page" class="form-control">
-              <option value="10">10 files</option>
-              <option value="20" selected>20 files</option>
-              <option value="50">50 files</option>
-              <option value="100">100 files</option>
-            </select>
-          </div>
-          
-          <button type="submit" class="btn-primary">
-            <i class="fas fa-save"></i>
-            Save Preferences
-          </button>
-        </form>
-      </div>
-    </div>
+  <!-- Removed stray Grid/List/Detail View and preferences section -->
 
     <!-- Security Tab -->
     <div class="tab-content" id="security-tab">
@@ -122,7 +106,7 @@
           Change Password
         </h3>
         
-        <form class="settings-form" method="post" action="{% url 'ocr:change_password' %}">
+  <form class="settings-form" method="post" action="{% url 'ocr:change_password' %}">
           {% csrf_token %}
           <div class="form-group">
             <label for="current_password">Current Password</label>
@@ -139,7 +123,7 @@
             <input type="password" id="new_password2" name="new_password2" class="form-control" required>
           </div>
           
-          <button type="submit" class="btn-primary">
+          <button type="submit" class="btn btn-primary">
             <i class="fas fa-key"></i>
             Update Password
           </button>
@@ -153,20 +137,14 @@
         </h3>
         
         <div class="security-options">
-          <div class="security-item">
-            <div class="security-info">
-              <h4>Two-Factor Authentication</h4>
-              <p>Add an extra layer of security to your account</p>
-            </div>
-            <button class="btn-outline-primary">Enable 2FA</button>
-          </div>
+          <!-- Two-Factor Authentication removed -->
           
           <div class="security-item">
             <div class="security-info">
               <h4>Active Sessions</h4>
               <p>Manage devices logged into your account</p>
             </div>
-            <button class="btn-outline-secondary">View Sessions</button>
+            <a href="{% url 'ocr:global_sessions' %}" class="btn-outline-secondary">View Sessions</a>
           </div>
           
           <div class="security-item">
@@ -174,7 +152,7 @@
               <h4>Download Your Data</h4>
               <p>Export all your processed files and data</p>
             </div>
-            <button class="btn-outline-info">Download Data</button>
+            <button class="btn-outline-info" onclick="window.location.href='{% url 'ocr:download_user_data' %}'">Download Data</button>
           </div>
         </div>
       </div>
@@ -233,13 +211,14 @@
             </div>
           </div>
           
-          <button type="submit" class="btn-primary">
+          <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i>
             Save Notification Settings
           </button>
         </form>
       </div>
     </div>
+  </div>
   </div>
 </div>
 
@@ -659,75 +638,19 @@ function switchTab(tabName) {
   // Remove active class from all tabs and buttons
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-  
   // Add active class to clicked button and corresponding content
   event.target.classList.add('active');
   document.getElementById(tabName + '-tab').classList.add('active');
 }
 
-// Form submission handlers
-document.addEventListener('DOMContentLoaded', function() {
-  // Handle preference form submissions
-  const forms = document.querySelectorAll('.settings-form');
-  
-  forms.forEach(form => {
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      // Show success message
-      showToast('Settings saved successfully!', 'success');
+function showSessions() {
+  fetch('{% url 'ocr:user_sessions' %}')
+    .then(response => response.json())
+    .then(data => {
+      let sessionList = data.sessions.map(s => `IP: ${s.ip}, Last Activity: ${s.last_activity}`).join('\n');
+      alert('Active Sessions:\n' + sessionList);
     });
-  });
-  
-  // Handle checkbox changes
-  const checkboxes = document.querySelectorAll('.preference-checkbox');
-  checkboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-      // Auto-save preference
-      showToast('Preference updated', 'info');
-    });
-  });
-});
-
-// Toast notification function
-function showToast(message, type = 'info') {
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  
-  toast.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    z-index: 2000;
-    animation: slideIn 0.3s ease;
-  `;
-  
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.style.animation = 'slideOut 0.3s ease';
-    setTimeout(() => document.body.removeChild(toast), 300);
-  }, 3000);
 }
-
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  
-  @keyframes slideOut {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(100%); opacity: 0; }
-  }
-`;
-document.head.appendChild(style);
+</script>
 </script>
 {% endblock %}

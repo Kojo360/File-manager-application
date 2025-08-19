@@ -1,3 +1,117 @@
+from django.contrib.auth.decorators import login_required
+# --- Global Active Sessions Page ---
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.utils import timezone
+
+@login_required
+def global_sessions_view(request):
+    """Show all active sessions globally with extra details."""
+    User = get_user_model()
+    sessions = []
+    now = timezone.now()
+    active_sessions = Session.objects.filter(expire_date__gte=now)
+    for session in active_sessions:
+        data = session.get_decoded()
+        user_id = data.get('_auth_user_id')
+        user = User.objects.filter(id=user_id).first() if user_id else None
+        username = user.username if user else 'Anonymous'
+        full_name = user.get_full_name() if user else 'Anonymous'
+        ip = data.get('ip', 'Unknown')
+        last_activity = session.expire_date.strftime('%Y-%m-%d %H:%M:%S')
+        session_start = data.get('session_start', 'Unknown')
+        device = data.get('device', 'Unknown')
+        status = 'Active' if session.expire_date > now else 'Expired'
+        role = 'Admin' if user and user.is_superuser else 'Regular User'
+        session_key = session.session_key
+        sessions.append({
+            'username': username,
+            'full_name': full_name,
+            'ip': ip,
+            'last_activity': last_activity,
+            'session_start': session_start,
+            'device': device,
+            'status': status,
+            'role': role,
+            'session_key': session_key,
+        })
+    return render(request, 'ocr/sessions.html', {'sessions': sessions, 'is_admin': request.user.is_superuser})
+
+@login_required
+def terminate_session_view(request, session_key):
+    """Allow admin to terminate a session."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    try:
+        Session.objects.filter(session_key=session_key).delete()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+from django.contrib.sessions.models import Session
+from django.http import JsonResponse
+import zipfile
+import io
+# ...existing code...
+
+# --- Profile Tab Live Actions ---
+
+@login_required
+def user_sessions_view(request):
+    """Return active sessions for the current user as JSON."""
+    sessions = []
+    user_sessions = Session.objects.filter(expire_date__gte=datetime.now())
+    for session in user_sessions:
+        data = session.get_decoded()
+        if data.get('_auth_user_id') == str(request.user.id):
+            sessions.append({
+                'ip': session.get_decoded().get('ip', 'Unknown'),
+                'last_activity': session.expire_date.strftime('%Y-%m-%d %H:%M:%S'),
+            })
+    return JsonResponse({'sessions': sessions})
+
+@login_required
+def download_user_data_view(request):
+    """Download all processed files and logs for the user as a zip."""
+    # Find all files processed by the user (if user tracking is added)
+    # For now, download all logs and files
+    logs = FileProcessingLog.objects.all()
+    # Prepare CSV log
+    import csv
+    log_csv = io.StringIO()
+    writer = csv.writer(log_csv)
+    writer.writerow(['original_filename', 'final_filename', 'file_size', 'status', 'extracted_name', 'extracted_account', 'file_path', 'error_message', 'processed_at'])
+    for log in logs:
+        writer.writerow([
+            log.original_filename,
+            log.final_filename,
+            log.file_size,
+            log.status,
+            log.extracted_name,
+            log.extracted_account,
+            log.file_path,
+            log.error_message,
+            log.processed_at.strftime('%Y-%m-%d %H:%M:%S'),
+        ])
+    # Prepare zip
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        zip_file.writestr('file_processing_logs.csv', log_csv.getvalue())
+        # Add processed files (from fully_indexed, partially_indexed, failed)
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+        for folder in ['fully_indexed', 'partially_indexed', 'failed']:
+            folder_path = os.path.join(base_dir, folder)
+            if os.path.exists(folder_path):
+                for filename in os.listdir(folder_path):
+                    file_path = os.path.join(folder_path, filename)
+                    if os.path.isfile(file_path):
+                        with open(file_path, 'rb') as f:
+                            zip_file.writestr(f"{folder}/{filename}", f.read())
+    zip_buffer.seek(0)
+    response = HttpResponse(zip_buffer, content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="user_data.zip"'
+    return response
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.conf import settings
@@ -791,29 +905,18 @@ os.makedirs(upload_dir, exist_ok=True)
 @login_required
 def user_profile_view(request):
     """Display user profile page with statistics and settings"""
-    # Calculate user statistics
-    user_files = FileProcessingLog.objects.filter(user=request.user) if request.user.is_authenticated else FileProcessingLog.objects.none()
-    
+    # Show user info and stats (file stats disabled for now)
+    user = request.user
     user_stats = {
-        'total_files': user_files.count(),
+        'total_files': 0,
         'success_rate': 0,
         'days_active': 0,
     }
-    
-    if user_files.exists():
-        successful_files = user_files.filter(status='completed').count()
-        user_stats['success_rate'] = round((successful_files / user_stats['total_files']) * 100) if user_stats['total_files'] > 0 else 0
-        
-        # Calculate days active (days since first file processed)
-        first_file = user_files.order_by('created_at').first()
-        if first_file:
-            days_diff = (datetime.now().date() - first_file.created_at.date()).days
-            user_stats['days_active'] = max(1, days_diff)
-    
     context = {
+        'user': user,
         'user_stats': user_stats,
+        'password_form': PasswordChangeForm(user),
     }
-    
     return render(request, 'ocr/user_profile.html', context)
 
 @login_required
@@ -821,14 +924,15 @@ def update_profile_view(request):
     """Handle profile updates"""
     if request.method == 'POST':
         user = request.user
-        user.first_name = request.POST.get('first_name', '')
-        user.last_name = request.POST.get('last_name', '')
-        user.email = request.POST.get('email', '')
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        user.first_name = first_name
+        user.last_name = last_name
+        user.email = email
         user.save()
-        
         messages.success(request, 'Profile updated successfully!')
         return redirect('ocr:user_profile')
-    
     return redirect('ocr:user_profile')
 
 @login_required
@@ -838,13 +942,12 @@ def change_password_view(request):
         form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save()
-            update_session_auth_hash(request, user)  # Important for keeping user logged in
+            update_session_auth_hash(request, user)
             messages.success(request, 'Password changed successfully!')
             return redirect('ocr:user_profile')
         else:
             for error in form.errors.values():
                 messages.error(request, error[0])
-    
     return redirect('ocr:user_profile')
 
 def api_documentation_view(request):

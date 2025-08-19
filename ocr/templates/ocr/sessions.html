@@ -1,0 +1,63 @@
+{% extends 'ocr/base.html' %}
+{% block title %}Active Sessions - File Manager{% endblock %}
+{% block page_title %}Active Sessions{% endblock %}
+{% block page_subtitle %}All currently active user sessions{% endblock %}
+{% block content %}
+<div class="content-container">
+  <div class="dashboard-card">
+    <h3><i class="fas fa-users"></i> Active Sessions</h3>
+    <table class="table table-dark table-striped mt-3">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Full Name</th>
+          <th>IP Address</th>
+          <th>Last Activity</th>
+          <th>Session Start</th>
+          <th>Device/Browser</th>
+          <th>Status</th>
+          <th>Role</th>
+          {% if is_admin %}<th>Action</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for session in sessions %}
+        <tr>
+          <td>{{ session.username }}</td>
+          <td>{{ session.full_name }}</td>
+          <td>{{ session.ip }}</td>
+          <td>{{ session.last_activity }}</td>
+          <td>{{ session.session_start }}</td>
+          <td>{{ session.device }}</td>
+          <td>{{ session.status }}</td>
+          <td>{{ session.role }}</td>
+          {% if is_admin %}
+          <td>
+            <button class="btn btn-danger btn-sm" onclick="terminateSession('{{ session.session_key }}', this)">Terminate</button>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="9">No active sessions found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+function terminateSession(sessionKey, btn) {
+  if (!confirm('Are you sure you want to terminate this session?')) return;
+  btn.disabled = true;
+  fetch(`/app/profile/sessions/terminate/${sessionKey}/`, {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}})
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        btn.closest('tr').remove();
+      } else {
+        alert('Failed to terminate session: ' + (data.error || 'Unknown error'));
+        btn.disabled = false;
+      }
+    });
+}
+</script>
+{% endblock %}

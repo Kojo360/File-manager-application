@@ -27,6 +27,10 @@ urlpatterns = [
     path('profile/', views.user_profile_view, name='user_profile'),
     path('profile/update/', views.update_profile_view, name='update_profile'),
     path('profile/change-password/', views.change_password_view, name='change_password'),
+    path('profile/sessions/global/', views.global_sessions_view, name='global_sessions'),
+    path('profile/sessions/', views.user_sessions_view, name='user_sessions'),
+    path('profile/download-data/', views.download_user_data_view, name='download_user_data'),
+    path('profile/sessions/terminate/<str:session_key>/', views.terminate_session_view, name='terminate_session'),
     
     # Documentation
     path('api-docs/', views.api_documentation_view, name='api_documentation'),
